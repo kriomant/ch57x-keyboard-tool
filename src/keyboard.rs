@@ -1,9 +1,13 @@
-use std::time::Duration;
+use crate::parse::parse_accord;
+
+use std::{time::Duration, str::FromStr, fmt::Display};
 
 use log::debug;
 use rusb::{DeviceHandle, GlobalContext};
 use anyhow::{anyhow, ensure, Result};
 use enumset::{EnumSetType, EnumSet};
+use serde_with::DeserializeFromStr;
+use strum_macros::{EnumString, Display};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
 
@@ -24,17 +28,16 @@ impl Keyboard {
     }
 
     pub fn bind_key(&mut self, layer: u8, key: Key, expansion: &Macro) -> Result<()> {
-        ensure!(layer < 3, "invalid layer index");
+        ensure!(layer <= 15, "invalid layer index");
 
         // Start key binding
-        self.send([0xa1, 0x01, 0, 0, 0, 0])?;
+        self.send([0xa1, layer+1, 0, 0, 0, 0])?;
 
-        let layer = 1; // 1..=3
         let (len, items): (u8, Box<dyn Iterator<Item=(u8, u8)>>) = match expansion {
             Macro::Keyboard(presses) => {
                 ensure!(presses.len() <= 5, "macro sequence is too long");
                 // For whatever reason empty key is added before others.
-                let iter = presses.iter().map(|&(mods, code)| (mods.as_u8(), code as u8));
+                let iter = presses.iter().map(|accord| (accord.modifiers.as_u8(), accord.code as u8));
                 (presses.len() as u8, Box::new(std::iter::once((0, 0)).chain(iter)))
             }
             Macro::Play => (0, Box::new(std::iter::once((0, 0)))),
@@ -44,9 +47,9 @@ impl Keyboard {
         for (i, (modifiers, code)) in items.enumerate() {
             self.send([
                 key.to_key_id()?,
-                (layer << 4) | expansion.kind(),
-                i as u8,
+                ((layer+1) << 4) | expansion.kind(),
                 len,
+                i as u8,
                 modifiers,
                 code,
             ])?;
@@ -63,6 +66,7 @@ impl Keyboard {
         debug!("send: {:02x?}", self.buf);
         let written = self.handle.write_interrupt(self.endpoint, &self.buf, DEFAULT_TIMEOUT)?;
         ensure!(written == self.buf.len(), "not all data written");
+        std::thread::sleep(std::time::Duration::from_millis(100));
         Ok(())
     }
 }
@@ -94,21 +98,23 @@ impl Key {
     }
 }
 
-#[derive(Debug, EnumSetType)]
+#[derive(Debug, EnumSetType, EnumString, Display)]
 pub enum Modifier {
     Ctrl,
     Shift,
     Alt,
     Win,
-    RCtrl,
-    RShift,
-    RAlt,
-    RWin,
+    RightCtrl,
+    RightShift,
+    RightAlt,
+    RightWin,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub type Modifiers = EnumSet<Modifier>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, Display)]
 #[repr(u8)]
-#[allow(unused)]
+#[strum(ascii_case_insensitive)]
 pub enum Code {
     A = 0x04,
     B,
@@ -136,16 +142,16 @@ pub enum Code {
     X,
     Y,
     Z,
-    N1,
-    N2,
-    N3,
-    N4,
-    N5,
-    N6,
-    N7,
-    N8,
-    N9,
-    N0,
+    #[strum(serialize="1")] N1,
+    #[strum(serialize="2")] N2,
+    #[strum(serialize="3")] N3,
+    #[strum(serialize="4")] N4,
+    #[strum(serialize="5")] N5,
+    #[strum(serialize="6")] N6,
+    #[strum(serialize="7")] N7,
+    #[strum(serialize="8")] N8,
+    #[strum(serialize="9")] N9,
+    #[strum(serialize="0")] N0,
     Enter,
     Escape,
     Backspace,
@@ -212,6 +218,41 @@ pub enum Code {
     NumPadEqual,
 }
 
+#[derive(Debug, Clone, Copy, DeserializeFromStr)]
+pub struct Accord {
+    pub modifiers: Modifiers,
+    pub code: Code,
+}
+
+impl From<(Modifiers, Code)> for Accord {
+    fn from((modifiers, code): (Modifiers, Code)) -> Self {
+        Self { modifiers, code }
+    }
+}
+
+impl FromStr for Accord {
+    type Err = nom::error::Error<String>;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        use nom::Finish as _;
+        match parse_accord(s).finish() {
+            Ok((_, accord)) => Ok(accord),
+            Err(nom::error::Error { input, code }) =>
+                Err(nom::error::Error { input: input.to_owned(), code }),
+        }
+    }
+}
+
+impl Display for Accord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for m in self.modifiers {
+            write!(f, "{}-", m)?;
+        }
+        write!(f, "{}", self.code)?;
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct MouseEvent {}
 
@@ -223,7 +264,7 @@ impl MouseEvent {
 
 #[derive(Debug, Clone)]
 pub enum Macro {
-    Keyboard(Vec<(EnumSet<Modifier>, Code)>),
+    Keyboard(Vec<Accord>),
     #[allow(unused)]
     Play,
     #[allow(unused)]

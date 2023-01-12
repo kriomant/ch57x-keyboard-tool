@@ -1,5 +1,5 @@
 [package]
-name = "ch57x-mapper"
+name = "ch57x-keyboard-tool"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,3 +13,9 @@ log = "0.4"
 env_logger = "0.10"
 itertools = "0.10"
 enumset = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_with = "2.2"
+serde_yaml = "0.9"
+nom = "7.1"
+strum = "0.24"
+strum_macros = "0.24"

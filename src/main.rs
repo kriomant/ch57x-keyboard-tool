@@ -1,12 +1,14 @@
 mod consts;
 mod options;
 mod keyboard;
+mod config;
+mod parse;
 
+use crate::config::Config;
 use crate::{options::Options, keyboard::Key};
-use crate::keyboard::{Keyboard, Macro, Code};
+use crate::keyboard::{Keyboard, Macro};
 
 use anyhow::{anyhow, bail, ensure, Result};
-use enumset::EnumSet;
 use itertools::Itertools;
 use log::debug;
 use rusb::{Device, DeviceDescriptor, GlobalContext, TransferType};
@@ -18,8 +20,15 @@ fn main() -> Result<()> {
     env_logger::init();
     let options = Options::parse();
 
+    // Load and validate mapping.
+    let config: Config = serde_yaml::from_reader(std::io::stdin().lock())
+        .context("load mapping config")?;
+    let layers = config.render()?;
+
+    // Find USB device and endpoint.
     let (device, desc) = find_device(&options).context("find USB device")?;
 
+    // Find device endpoint.
     ensure!(
         desc.num_configurations() == 1,
         "only one device configuration is expected"
@@ -49,15 +58,23 @@ fn main() -> Result<()> {
         endpt_desc.transfer_type() == TransferType::Interrupt,
         "unexpected endpoint transfer type"
     );
-    let endpt_addr = endpt_desc.address();
 
+    // Open device.
     let mut handle = device.open().context("open USB device")?;
     handle.claim_interface(intf.number())?;
 
-    let mut keyboard = Keyboard::new(handle, endpt_addr).context("init keyboard")?;
-    keyboard.bind_key(0, Key::Button(0), &Macro::Keyboard(vec![
-        (EnumSet::empty(), Code::B),
-    ])).context("bind key")?;
+    // Apply keyboard mapping.
+    let mut keyboard = Keyboard::new(handle, endpt_desc.address()).context("init keyboard")?;
+    for (layer_idx, layer) in layers.iter().enumerate() {
+        for (button_idx, accord) in layer.buttons.iter().enumerate() {
+            if let Some(accord) = accord {
+                println!("{layer_idx} / {button_idx} -> {accord:?}");
+                keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), &Macro::Keyboard(vec![*accord]))
+                    .context("bind key")?;
+                std::thread::sleep(std::time::Duration::from_millis(1000));
+            }
+        }
+    }
 
     Ok(())
 }

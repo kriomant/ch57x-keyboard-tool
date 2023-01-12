@@ -1,0 +1,55 @@
+# Natural keyboard orienation is when buttons are on the left
+# side and knobs are on the right. However you may want to use
+# keyboard in another orienation. To avoid remapping button
+# positions in your head, just given it here.
+# Possible values are:
+#   (horizontal)
+#   - 'normal': button on the left, knobs on the right
+#   - 'upsidedown': button on the right, knobs on the left
+#   (vertical)
+#   - 'clockwise': button on the top, knobs on the bottom
+#   - 'counterclockwise': button on the bottom, knobs on the top
+orientation: normal
+
+# There are different models of keyboard with different number
+# buttons and knobs. Write it here for proper handling.
+# Count rows and columns when keyboard is in normal orienation,
+# with knobs on the right side.
+rows: 3
+columns: 4
+knobs: 2
+
+# Layers are alternative key mappings which may be programmed.
+# Current layer is changed using button on the side of keyboard
+# and displayed with LEDs on top (only for the moment of changing).
+# All keyboards I saw had three layers, but I suppose other variants
+# exist.
+layers:
+  - buttons:
+      # Array of buttons. In horizontal orienations it's `rows` rows
+      # `columns` buttons each. In vertical: `columns` rows
+      # `rows` buttons each.
+      - ["a", "b", "c", "d"]
+      - ["e", "f", "g", "h"]
+      - ["i", "j", "k", "l"]
+    knobs:
+      # Knobs are numbered from left to right in horizontal orientation
+      # and from top to bottom in vertical one.
+      - null
+      - null
+
+  - buttons:
+      - ["m", "n", "o", "p"]
+      - ["q", "r", "s", "t"]
+      - ["u", "v", "w", "x"]
+    knobs:
+      - null
+      - null
+
+  - buttons:
+      - ["y", "z", "0", "1"]
+      - ["2", "3", "4", "5"]
+      - ["6", "7", "8", "9"]
+    knobs:
+      - null
+      - null
