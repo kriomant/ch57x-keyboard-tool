@@ -39,7 +39,9 @@ layers:
       - null
 
   - buttons:
-      - ["m", "n", "o", "p"]
+      # Each entry is a sequence of 'accords' — combination of key
+      # with modifiers, like 'ctrl-alt-a' or 'win-rctrl-backspace'.
+      - ["m,alt-f1", "n", "o", "p"]
       - ["q", "r", "s", "t"]
       - ["u", "v", "w", "x"]
     knobs:

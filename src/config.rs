@@ -1,7 +1,7 @@
 use anyhow::{Result, ensure};
 use serde::Deserialize;
 
-use crate::keyboard::Accord;
+use crate::keyboard::Macro;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -41,13 +41,13 @@ pub enum Orientation {
 
 #[derive(Debug, Deserialize)]
 pub struct Layer {
-    pub buttons: Vec<Vec<Option<Accord>>>,
-    pub knobs: Vec<Option<Accord>>,
+    pub buttons: Vec<Vec<Option<Macro>>>,
+    pub knobs: Vec<Option<Macro>>,
 }
 
 pub struct FlatLayer {
-    pub buttons: Vec<Option<Accord>>,
-    pub knobs: Vec<Option<Accord>>,
+    pub buttons: Vec<Option<Macro>>,
+    pub knobs: Vec<Option<Macro>>,
 }
 
 fn reorient_grid<T: Clone>(orientation: Orientation, rows: usize, cols: usize, data: Vec<Vec<T>>) -> Vec<T> {

@@ -6,7 +6,7 @@ mod parse;
 
 use crate::config::Config;
 use crate::{options::Options, keyboard::Key};
-use crate::keyboard::{Keyboard, Macro};
+use crate::keyboard::Keyboard;
 
 use anyhow::{anyhow, bail, ensure, Result};
 use itertools::Itertools;
@@ -66,10 +66,9 @@ fn main() -> Result<()> {
     // Apply keyboard mapping.
     let mut keyboard = Keyboard::new(handle, endpt_desc.address()).context("init keyboard")?;
     for (layer_idx, layer) in layers.iter().enumerate() {
-        for (button_idx, accord) in layer.buttons.iter().enumerate() {
-            if let Some(accord) = accord {
-                println!("{layer_idx} / {button_idx} -> {accord:?}");
-                keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), &Macro::Keyboard(vec![*accord]))
+        for (button_idx, macro_) in layer.buttons.iter().enumerate() {
+            if let Some(macro_) = macro_ {
+                keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), macro_)
                     .context("bind key")?;
                 std::thread::sleep(std::time::Duration::from_millis(1000));
             }

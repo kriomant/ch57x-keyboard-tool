@@ -1,4 +1,4 @@
-use crate::parse::parse_accord;
+use crate::parse::{parse_accord, parse_macro};
 
 use std::{time::Duration, str::FromStr, fmt::Display};
 
@@ -99,14 +99,19 @@ impl Key {
 }
 
 #[derive(Debug, EnumSetType, EnumString, Display)]
+#[strum(ascii_case_insensitive)]
 pub enum Modifier {
     Ctrl,
     Shift,
     Alt,
     Win,
+    #[strum(serialize="rctrl")]
     RightCtrl,
+    #[strum(serialize="rshift")]
     RightShift,
+    #[strum(serialize="ralt")]
     RightAlt,
+    #[strum(serialize="rwin")]
     RightWin,
 }
 
@@ -218,10 +223,18 @@ pub enum Code {
     NumPadEqual,
 }
 
-#[derive(Debug, Clone, Copy, DeserializeFromStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DeserializeFromStr)]
 pub struct Accord {
     pub modifiers: Modifiers,
     pub code: Code,
+}
+
+impl Accord {
+    pub fn new<M>(modifiers: M, code: Code) -> Self
+        where M: Into<Modifiers>
+    {
+        Self { modifiers: modifiers.into(), code }
+    }
 }
 
 impl From<(Modifiers, Code)> for Accord {
@@ -234,8 +247,10 @@ impl FromStr for Accord {
     type Err = nom::error::Error<String>;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        use nom::sequence::terminated;
+        use nom::combinator::eof;
         use nom::Finish as _;
-        match parse_accord(s).finish() {
+        match terminated(parse_accord, eof)(s).finish() {
             Ok((_, accord)) => Ok(accord),
             Err(nom::error::Error { input, code }) =>
                 Err(nom::error::Error { input: input.to_owned(), code }),
@@ -253,7 +268,7 @@ impl Display for Accord {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MouseEvent {}
 
 impl MouseEvent {
@@ -262,7 +277,7 @@ impl MouseEvent {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, DeserializeFromStr)]
 pub enum Macro {
     Keyboard(Vec<Accord>),
     #[allow(unused)]
@@ -277,6 +292,21 @@ impl Macro {
             Macro::Keyboard(_) => 1,
             Macro::Play => 2,
             Macro::Mouse(_) => 3,
+        }
+    }
+}
+
+impl FromStr for Macro {
+    type Err = nom::error::Error<String>;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        use nom::sequence::terminated;
+        use nom::combinator::eof;
+        use nom::Finish as _;
+        match terminated(parse_macro, eof)(s).finish() {
+            Ok((_, accord)) => Ok(accord),
+            Err(nom::error::Error { input, code }) =>
+                Err(nom::error::Error { input: input.to_owned(), code }),
         }
     }
 }
