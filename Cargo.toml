@@ -1,0 +1,15 @@
+[package]
+name = "ch57x-mapper"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rusb = "0.9"
+anyhow = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+log = "0.4"
+env_logger = "0.10"
+itertools = "0.10"
+enumset = "1.0"
