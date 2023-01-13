@@ -65,13 +65,15 @@ layers:
         cw: 'ctrl-right'
 
   - buttons:
-      - ["y", "z", "0", "1"]
+      # Multimedia commands may be emitted. They cannot be mixed with
+      # normal keyboard events and modifiers are not supported.
+      - ["play", "prev", "next", "mute"]
       - ["2", "3", "4", "5"]
       - ["6", "7", "8", "9"]
     knobs:
-      - ccw: 'a'
-        press: 'b'
-        cw: 'c'
+      - ccw: 'volumedown'
+        press: 'mute'
+        cw: 'volumeup'
       - ccw: 'd'
         press: 'e'
         cw: 'f'

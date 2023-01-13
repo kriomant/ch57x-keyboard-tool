@@ -6,7 +6,7 @@ use nom::{
     combinator::{map, map_res, complete, opt},
 };
 
-use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier, MouseButton, MouseButtons, MouseAction};
+use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier, MouseButton, MouseButtons, MouseAction, MediaCode};
 
 use std::str::FromStr;
 
@@ -22,6 +22,10 @@ pub fn parse_modifiers(s: &str) -> IResult<&str, Modifiers> {
         |mods, m| { mods | m }
     );
     modifiers(s)
+}
+
+pub fn parse_media_event(s: &str) -> IResult<&str, MediaCode> {
+    map_res(alpha1, MediaCode::from_str)(s)
 }
 
 pub fn parse_accord(s: &str) -> IResult<&str, Accord> {
@@ -68,13 +72,14 @@ pub fn parse_macro(s: &str) -> IResult<&str, Macro> {
     let mut parser = alt((
         map(separated_list1(char(','), parse_accord), Macro::Keyboard),
         map(parse_mouse_event, Macro::Mouse),
+        map(parse_media_event, Macro::Media),
     ));
     parser(s)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::keyboard::{Accord, Modifiers, Code, Modifier, Macro, MouseEvent, MouseModifier, MouseButton, MouseAction};
+    use crate::keyboard::{Accord, Modifiers, Code, Modifier, Macro, MouseEvent, MouseModifier, MouseButton, MouseAction, MediaCode};
 
     #[test]
     fn parse_accord() {
@@ -110,5 +115,10 @@ mod tests {
         assert_eq!("ctrl-click".parse(), Ok(Macro::Mouse(
             MouseEvent(MouseAction::Click(MouseButton::Left.into()), Some(MouseModifier::Ctrl))
         )));
+    }
+
+    #[test]
+    fn parse_media() {
+        assert_eq!("play".parse(), Ok(Macro::Media(MediaCode::Play)));
     }
 }

@@ -52,7 +52,9 @@ impl Keyboard {
                     ])?;
                 }
             }
-            Macro::Play => {} //(0, Box::new(std::iter::once((0, 0)))),
+            Macro::Media(code) => {
+                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x02, *code as u8, 0, 0, 0, 0, 0])?;
+            }
 
             Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
                 ensure!(!buttons.is_empty(), "buttons must be given for click macro");
@@ -127,6 +129,20 @@ pub enum Modifier {
 }
 
 pub type Modifiers = EnumSet<Modifier>;
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, Display)]
+#[repr(u8)]
+#[strum(ascii_case_insensitive)]
+pub enum MediaCode {
+	Play = 0xcd,
+    #[strum(serialize="previous", serialize="prev")]
+	Previous = 0xb6,
+	Next = 0xb5,
+	Mute = 0xe2,
+	VolumeUp = 0xe9,
+	VolumeDown = 0xea,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, Display)]
 #[repr(u8)]
@@ -309,7 +325,7 @@ pub struct MouseEvent(pub MouseAction, pub Option<MouseModifier>);
 pub enum Macro {
     Keyboard(Vec<Accord>),
     #[allow(unused)]
-    Play,
+    Media(MediaCode),
     #[allow(unused)]
     Mouse(MouseEvent),
 }
@@ -318,7 +334,7 @@ impl Macro {
     fn kind(&self) -> u8 {
         match self {
             Macro::Keyboard(_) => 1,
-            Macro::Play => 2,
+            Macro::Media(_) => 2,
             Macro::Mouse(_) => 3,
         }
     }
