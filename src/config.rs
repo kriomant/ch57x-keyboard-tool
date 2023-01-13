@@ -42,12 +42,19 @@ pub enum Orientation {
 #[derive(Debug, Deserialize)]
 pub struct Layer {
     pub buttons: Vec<Vec<Option<Macro>>>,
-    pub knobs: Vec<Option<Macro>>,
+    pub knobs: Vec<Knob>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Knob {
+    pub ccw: Option<Macro>,
+    pub press: Option<Macro>,
+    pub cw: Option<Macro>,
 }
 
 pub struct FlatLayer {
     pub buttons: Vec<Option<Macro>>,
-    pub knobs: Vec<Option<Macro>>,
+    pub knobs: Vec<Knob>,
 }
 
 fn reorient_grid<T: Clone>(orientation: Orientation, rows: usize, cols: usize, data: Vec<Vec<T>>) -> Vec<T> {

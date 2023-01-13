@@ -6,7 +6,7 @@ mod parse;
 
 use crate::config::Config;
 use crate::{options::Options, keyboard::Key};
-use crate::keyboard::Keyboard;
+use crate::keyboard::{Keyboard, KnobAction};
 
 use anyhow::{anyhow, bail, ensure, Result};
 use itertools::Itertools;
@@ -71,6 +71,18 @@ fn main() -> Result<()> {
                 keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), macro_)
                     .context("bind key")?;
                 std::thread::sleep(std::time::Duration::from_millis(1000));
+            }
+        }
+
+        for (knob_idx, knob) in layer.knobs.iter().enumerate() {
+            if let Some(macro_) = &knob.ccw {
+                keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCCW), macro_)?;
+            }
+            if let Some(macro_) = &knob.press {
+                keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::Press), macro_)?;
+            }
+            if let Some(macro_) = &knob.cw {
+                keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCW), macro_)?;
             }
         }
     }

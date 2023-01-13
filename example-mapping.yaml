@@ -35,8 +35,14 @@ layers:
     knobs:
       # Knobs are numbered from left to right in horizontal orientation
       # and from top to bottom in vertical one.
-      - null
-      - null
+      # Knobs can be rotated either counter-clockwise (ccw) or clockwise (cw)
+      # and pressed.
+      - ccw: 'wheelup'
+        press: 'click'
+        cw: 'wheeldown'
+      - ccw: 'shift-wheelup'
+        press: 'shift-click'
+        cw: 'shift-wheeldown'
 
   - buttons:
       # Each entry is either a sequence of 'accords' or mouse event.
@@ -51,13 +57,21 @@ layers:
       - ["click+rclick", "wheeldown", "shift-wheelup", "ctrl-wheelup"]
       - ["alt-wheelup", "ctrl-click", "wheelup", "wheelup"]
     knobs:
-      - null
-      - null
+      - ccw: 'left'
+        press: 'enter'
+        cw: 'right'
+      - ccw: 'ctrl-left'
+        press: 'ctrl-enter'
+        cw: 'ctrl-right'
 
   - buttons:
       - ["y", "z", "0", "1"]
       - ["2", "3", "4", "5"]
       - ["6", "7", "8", "9"]
     knobs:
-      - null
-      - null
+      - ccw: 'a'
+        press: 'b'
+        cw: 'c'
+      - ccw: 'd'
+        press: 'e'
+        cw: 'f'
