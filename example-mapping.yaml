@@ -46,8 +46,9 @@ layers:
       # Mouse events are clicks ('click/lclick', 'rclick', 'mclick') or
       # wheel events ('wheelup', 'wheeldown') with optional single modifier,
       # only 'ctrl', 'shift' and 'alt' are supported ('ctrl-wheeldown').
+      # Clicks may combine several buttons, like this: 'click+rclick'.
       - ["click", "lclick", "rclick", "mclick"]
-      - ["wheelup", "wheeldown", "shift-wheelup", "ctrl-wheelup"]
+      - ["click+rclick", "wheeldown", "shift-wheelup", "ctrl-wheelup"]
       - ["alt-wheelup", "ctrl-wheelup", "wheelup", "wheelup"]
     knobs:
       - null

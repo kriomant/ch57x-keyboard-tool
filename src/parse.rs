@@ -6,7 +6,7 @@ use nom::{
     combinator::{map, map_res, complete, opt},
 };
 
-use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier};
+use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier, MouseButton, MouseButtons};
 
 use std::str::FromStr;
 
@@ -39,11 +39,14 @@ pub fn parse_mouse_event(s: &str) -> IResult<&str, MouseEvent> {
     use nom::combinator::value;
     use nom::bytes::complete::tag;
 
-    let click = alt((
-        value(MouseEvent::ClickLeft, alt((tag("click"), tag("lclick")))),
-        value(MouseEvent::ClickRight, tag("rclick")),
-        value(MouseEvent::ClickMiddle, tag("mclick")),
+    let button = alt((
+        value(MouseButton::Left, alt((tag("click"), tag("lclick")))),
+        value(MouseButton::Right, tag("rclick")),
+        value(MouseButton::Middle, tag("mclick")),
     ));
+    let buttons = map(separated_list1(char('+'), button), MouseButtons::from_iter);
+    let click = map(buttons, MouseEvent::Click);
+
     let wheel = alt((
         value(MouseEvent::WheelUp as fn(Option<MouseModifier>) -> MouseEvent, tag("wheelup")),
         value(MouseEvent::WheelDown as fn(Option<MouseModifier>) -> MouseEvent, tag("wheeldown")),
@@ -71,7 +74,7 @@ pub fn parse_macro(s: &str) -> IResult<&str, Macro> {
 
 #[cfg(test)]
 mod tests {
-    use crate::keyboard::{Accord, Modifiers, Code, Modifier, Macro, MouseEvent, MouseModifier};
+    use crate::{keyboard::{Accord, Modifiers, Code, Modifier, Macro, MouseEvent, MouseModifier, MouseButton}};
 
     #[test]
     fn parse_accord() {
@@ -95,7 +98,12 @@ mod tests {
             Accord::new(Modifier::Ctrl, Code::A),
             Accord::new(Modifier::Alt, Code::Backspace),
         ])));
-        assert_eq!("click".parse(), Ok(Macro::Mouse(MouseEvent::ClickLeft)));
+        assert_eq!("click".parse(), Ok(Macro::Mouse(
+            MouseEvent::Click(MouseButton::Left.into())
+        )));
+        assert_eq!("click+rclick".parse(), Ok(Macro::Mouse(
+            MouseEvent::Click(MouseButton::Left | MouseButton::Right)
+        )));
         assert_eq!("ctrl-wheelup".parse(), Ok(Macro::Mouse(
             MouseEvent::WheelUp(Some(MouseModifier::Ctrl))
         )));
