@@ -76,3 +76,22 @@ fn reorient_row<T>(orientation: Orientation, mut data: Vec<T>) -> Vec<T> {
     }
     data
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+
+    use std::path::PathBuf;
+
+    #[test]
+    fn parse_example_config() -> anyhow::Result<()> {
+        let mut path = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
+        path.push("example-mapping.yaml");
+        let file = std::fs::File::open(&path)?;
+
+        // Load and validate mapping.
+        let config: Config = serde_yaml::from_reader(file)?;
+        config.render()?;
+        Ok(())
+    }
+}
