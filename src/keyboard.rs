@@ -22,7 +22,7 @@ impl Keyboard {
         let mut keyboard = Self { handle, endpoint, buf: [0; 65] };
 
         keyboard.buf[0] = 0x03;
-        keyboard.send([0, 0, 0, 0, 0, 0])?;
+        keyboard.send([0, 0, 0, 0, 0, 0, 0, 0])?;
 
         Ok(keyboard)
     }
@@ -31,38 +31,48 @@ impl Keyboard {
         ensure!(layer <= 15, "invalid layer index");
 
         // Start key binding
-        self.send([0xa1, layer+1, 0, 0, 0, 0])?;
+        self.send([0xa1, layer+1, 0, 0, 0, 0, 0, 0])?;
 
-        let (len, items): (u8, Box<dyn Iterator<Item=(u8, u8)>>) = match expansion {
+        match expansion {
             Macro::Keyboard(presses) => {
                 ensure!(presses.len() <= 5, "macro sequence is too long");
                 // For whatever reason empty key is added before others.
                 let iter = presses.iter().map(|accord| (accord.modifiers.as_u8(), accord.code as u8));
-                (presses.len() as u8, Box::new(std::iter::once((0, 0)).chain(iter)))
+                let (len, items) = (presses.len() as u8, Box::new(std::iter::once((0, 0)).chain(iter)));
+                for (i, (modifiers, code)) in items.enumerate() {
+                    self.send([
+                        key.to_key_id()?,
+                        ((layer+1) << 4) | expansion.kind(),
+                        len,
+                        i as u8,
+                        modifiers,
+                        code,
+                        0,
+                        0,
+                    ])?;
+                }
             }
-            Macro::Play => (0, Box::new(std::iter::once((0, 0)))),
-            Macro::Mouse(s) => (0, Box::new(s.iter().map(|m| m.encode()))),
+            Macro::Play => {} //(0, Box::new(std::iter::once((0, 0)))),
+            Macro::Mouse(MouseEvent::ClickLeft)   => { self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, 0x01, 0, 0, 0, 0, 0])?; }
+            Macro::Mouse(MouseEvent::ClickRight)  => { self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, 0x02, 0, 0, 0, 0, 0])?; }
+            Macro::Mouse(MouseEvent::ClickMiddle) => { self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, 0x04, 0, 0, 0, 0, 0])?; }
+
+            Macro::Mouse(MouseEvent::WheelUp(modifier)) => {
+                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0x01, modifier.map_or(0, |m| m as u8), 0])?;
+            }
+            Macro::Mouse(MouseEvent::WheelDown(modifier)) => {
+                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0xff, modifier.map_or(0, |m| m as u8), 0])?;
+            }
         };
 
-        for (i, (modifiers, code)) in items.enumerate() {
-            self.send([
-                key.to_key_id()?,
-                ((layer+1) << 4) | expansion.kind(),
-                len,
-                i as u8,
-                modifiers,
-                code,
-            ])?;
-        }
-
         // Finish key binding
-        self.send([0xaa, 0xaa, 0, 0, 0, 0])?;
+        self.send([0xaa, 0xaa, 0, 0, 0, 0, 0, 0])?;
 
         Ok(())
     }
 
-    fn send(&mut self, pkt: [u8; 6]) -> Result<()> {
-        self.buf[1..7].copy_from_slice(pkt.as_slice());
+    fn send(&mut self, pkt: [u8; 8]) -> Result<()> {
+        self.buf[1..9].copy_from_slice(pkt.as_slice());
         debug!("send: {:02x?}", self.buf);
         let written = self.handle.write_interrupt(self.endpoint, &self.buf, DEFAULT_TIMEOUT)?;
         ensure!(written == self.buf.len(), "not all data written");
@@ -268,13 +278,22 @@ impl Display for Accord {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MouseEvent {}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, Display)]
+#[strum(ascii_case_insensitive)]
+#[repr(u8)]
+pub enum MouseModifier {
+    Ctrl = 0x01,
+    Shift = 0x02,
+    Alt = 0x04,
+}
 
-impl MouseEvent {
-    fn encode(&self) -> (u8, u8) {
-        (0, 0)
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MouseEvent {
+    ClickLeft,
+    ClickMiddle,
+    ClickRight,
+    WheelUp(Option<MouseModifier>),
+    WheelDown(Option<MouseModifier>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, DeserializeFromStr)]
@@ -283,7 +302,7 @@ pub enum Macro {
     #[allow(unused)]
     Play,
     #[allow(unused)]
-    Mouse(Vec<MouseEvent>),
+    Mouse(MouseEvent),
 }
 
 impl Macro {

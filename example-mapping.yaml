@@ -39,11 +39,16 @@ layers:
       - null
 
   - buttons:
-      # Each entry is a sequence of 'accords' — combination of key
-      # with modifiers, like 'ctrl-alt-a' or 'win-rctrl-backspace'.
-      - ["m,alt-f1", "n", "o", "p"]
-      - ["q", "r", "s", "t"]
-      - ["u", "v", "w", "x"]
+      # Each entry is either a sequence of 'accords' or mouse event.
+      # Accord is a combination of key with modifiers, like 'ctrl-alt-a'
+      # or 'win-rctrl-backspace'. You may combine several accords into
+      # sequence using comma: 'ctrl-v,ctrl-c'.
+      # Mouse events are clicks ('click/lclick', 'rclick', 'mclick') or
+      # wheel events ('wheelup', 'wheeldown') with optional single modifier,
+      # only 'ctrl', 'shift' and 'alt' are supported ('ctrl-wheeldown').
+      - ["click", "lclick", "rclick", "mclick"]
+      - ["wheelup", "wheeldown", "shift-wheelup", "ctrl-wheelup"]
+      - ["alt-wheelup", "ctrl-wheelup", "wheelup", "wheelup"]
     knobs:
       - null
       - null

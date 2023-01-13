@@ -1,40 +1,77 @@
 use nom::{
     IResult,
-    sequence::{tuple, terminated},
+    sequence::{tuple, terminated, pair},
     multi::{fold_many0, separated_list1},
     character::complete::{char, alpha1, alphanumeric1},
-    combinator::{map, map_res, complete},
+    combinator::{map, map_res, complete, opt},
 };
 
-use crate::keyboard::{Accord, Modifier, Modifiers, Macro};
+use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier};
 
 use std::str::FromStr;
+
+pub fn parse_mouse_modifier(s: &str) -> IResult<&str, MouseModifier> {
+    map_res(alpha1, MouseModifier::from_str)(s)
+}
+
+pub fn parse_modifiers(s: &str) -> IResult<&str, Modifiers> {
+    let modifier = map_res(alpha1, Modifier::from_str);
+    let mut modifiers = fold_many0(
+        terminated(modifier, char('-')),
+        Modifiers::empty,
+        |mods, m| { mods | m }
+    );
+    modifiers(s)
+}
 
 pub fn parse_accord(s: &str) -> IResult<&str, Accord> {
     // Key code
     let code = alphanumeric1;
     let code = map_res(code, FromStr::from_str);
 
-    let modifier = map_res(alpha1, Modifier::from_str);
-    let modifiers = fold_many0(
-        terminated(modifier, char('-')),
-        Modifiers::empty,
-        |mods, m| { mods | m }
-    );
-
-    let accord = complete(tuple((modifiers, code)));
+    let accord = complete(tuple((parse_modifiers, code)));
     let mut accord = map(accord, |t| t.into());
     accord(s)
 }
 
+pub fn parse_mouse_event(s: &str) -> IResult<&str, MouseEvent> {
+    use nom::branch::alt;
+    use nom::combinator::value;
+    use nom::bytes::complete::tag;
+
+    let click = alt((
+        value(MouseEvent::ClickLeft, alt((tag("click"), tag("lclick")))),
+        value(MouseEvent::ClickRight, tag("rclick")),
+        value(MouseEvent::ClickMiddle, tag("mclick")),
+    ));
+    let wheel = alt((
+        value(MouseEvent::WheelUp as fn(Option<MouseModifier>) -> MouseEvent, tag("wheelup")),
+        value(MouseEvent::WheelDown as fn(Option<MouseModifier>) -> MouseEvent, tag("wheeldown")),
+    ));
+
+    let mut event = alt((
+        click,
+        map(
+            pair(opt(terminated(parse_mouse_modifier, char('-'))), wheel),
+            |(modifier, wheel)| wheel(modifier)
+        ),
+    ));
+
+    event(s)
+}
+
 pub fn parse_macro(s: &str) -> IResult<&str, Macro> {
-    let mut parser = map(separated_list1(char(','), parse_accord), |accords| Macro::Keyboard(accords));
+    use nom::branch::alt;
+    let mut parser = alt((
+        map(separated_list1(char(','), parse_accord), Macro::Keyboard),
+        map(parse_mouse_event, Macro::Mouse),
+    ));
     parser(s)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::keyboard::{Accord, Modifiers, Code, Modifier, Macro};
+    use crate::keyboard::{Accord, Modifiers, Code, Modifier, Macro, MouseEvent, MouseModifier};
 
     #[test]
     fn parse_accord() {
@@ -58,5 +95,9 @@ mod tests {
             Accord::new(Modifier::Ctrl, Code::A),
             Accord::new(Modifier::Alt, Code::Backspace),
         ])));
+        assert_eq!("click".parse(), Ok(Macro::Mouse(MouseEvent::ClickLeft)));
+        assert_eq!("ctrl-wheelup".parse(), Ok(Macro::Mouse(
+            MouseEvent::WheelUp(Some(MouseModifier::Ctrl))
+        )));
     }
 }
