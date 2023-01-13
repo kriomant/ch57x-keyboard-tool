@@ -1,12 +1,12 @@
 use nom::{
     IResult,
-    sequence::{tuple, terminated, pair},
+    sequence::{tuple, terminated},
     multi::{fold_many0, separated_list1},
     character::complete::{char, alpha1, alphanumeric1},
     combinator::{map, map_res, complete, opt},
 };
 
-use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier, MouseButton, MouseButtons};
+use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier, MouseButton, MouseButtons, MouseAction};
 
 use std::str::FromStr;
 
@@ -45,20 +45,20 @@ pub fn parse_mouse_event(s: &str) -> IResult<&str, MouseEvent> {
         value(MouseButton::Middle, tag("mclick")),
     ));
     let buttons = map(separated_list1(char('+'), button), MouseButtons::from_iter);
-    let click = map(buttons, MouseEvent::Click);
+    let click = map(buttons, MouseAction::Click);
 
     let wheel = alt((
-        value(MouseEvent::WheelUp as fn(Option<MouseModifier>) -> MouseEvent, tag("wheelup")),
-        value(MouseEvent::WheelDown as fn(Option<MouseModifier>) -> MouseEvent, tag("wheeldown")),
+        value(MouseAction::WheelUp, tag("wheelup")),
+        value(MouseAction::WheelDown, tag("wheeldown")),
     ));
 
-    let mut event = alt((
-        click,
-        map(
-            pair(opt(terminated(parse_mouse_modifier, char('-'))), wheel),
-            |(modifier, wheel)| wheel(modifier)
-        ),
-    ));
+    let mut event = map(
+        tuple((
+            opt(terminated(parse_mouse_modifier, char('-'))),
+            alt((click, wheel)),
+        )),
+        |(modifier, action)| MouseEvent(action, modifier)
+    );
 
     event(s)
 }
@@ -74,7 +74,7 @@ pub fn parse_macro(s: &str) -> IResult<&str, Macro> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{keyboard::{Accord, Modifiers, Code, Modifier, Macro, MouseEvent, MouseModifier, MouseButton}};
+    use crate::keyboard::{Accord, Modifiers, Code, Modifier, Macro, MouseEvent, MouseModifier, MouseButton, MouseAction};
 
     #[test]
     fn parse_accord() {
@@ -99,13 +99,16 @@ mod tests {
             Accord::new(Modifier::Alt, Code::Backspace),
         ])));
         assert_eq!("click".parse(), Ok(Macro::Mouse(
-            MouseEvent::Click(MouseButton::Left.into())
+            MouseEvent(MouseAction::Click(MouseButton::Left.into()), None)
         )));
         assert_eq!("click+rclick".parse(), Ok(Macro::Mouse(
-            MouseEvent::Click(MouseButton::Left | MouseButton::Right)
+            MouseEvent(MouseAction::Click(MouseButton::Left | MouseButton::Right), None)
         )));
         assert_eq!("ctrl-wheelup".parse(), Ok(Macro::Mouse(
-            MouseEvent::WheelUp(Some(MouseModifier::Ctrl))
+            MouseEvent(MouseAction::WheelUp, Some(MouseModifier::Ctrl))
+        )));
+        assert_eq!("ctrl-click".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Click(MouseButton::Left.into()), Some(MouseModifier::Ctrl))
         )));
     }
 }

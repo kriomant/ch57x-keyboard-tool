@@ -49,7 +49,7 @@ layers:
       # Clicks may combine several buttons, like this: 'click+rclick'.
       - ["click", "lclick", "rclick", "mclick"]
       - ["click+rclick", "wheeldown", "shift-wheelup", "ctrl-wheelup"]
-      - ["alt-wheelup", "ctrl-wheelup", "wheelup", "wheelup"]
+      - ["alt-wheelup", "ctrl-click", "wheelup", "wheelup"]
     knobs:
       - null
       - null

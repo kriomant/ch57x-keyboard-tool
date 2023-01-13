@@ -54,14 +54,14 @@ impl Keyboard {
             }
             Macro::Play => {} //(0, Box::new(std::iter::once((0, 0)))),
 
-            Macro::Mouse(MouseEvent::Click(buttons)) => {
+            Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
                 ensure!(!buttons.is_empty(), "buttons must be given for click macro");
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, 0, 0])?;
+                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0])?;
             }
-            Macro::Mouse(MouseEvent::WheelUp(modifier)) => {
+            Macro::Mouse(MouseEvent(MouseAction::WheelUp, modifier)) => {
                 self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0x01, modifier.map_or(0, |m| m as u8), 0])?;
             }
-            Macro::Mouse(MouseEvent::WheelDown(modifier)) => {
+            Macro::Mouse(MouseEvent(MouseAction::WheelDown, modifier)) => {
                 self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0xff, modifier.map_or(0, |m| m as u8), 0])?;
             }
         };
@@ -296,11 +296,14 @@ pub enum MouseButton {
 pub type MouseButtons = EnumSet<MouseButton>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MouseEvent {
+pub enum MouseAction {
     Click(MouseButtons),
-    WheelUp(Option<MouseModifier>),
-    WheelDown(Option<MouseModifier>),
+    WheelUp,
+    WheelDown,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MouseEvent(pub MouseAction, pub Option<MouseModifier>);
 
 #[derive(Debug, Clone, PartialEq, Eq, DeserializeFromStr)]
 pub enum Macro {
