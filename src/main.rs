@@ -5,6 +5,7 @@ mod config;
 mod parse;
 
 use crate::config::Config;
+use crate::options::{Command, LedCommand};
 use crate::{options::Options, keyboard::Key};
 use crate::keyboard::{Keyboard, KnobAction};
 
@@ -19,11 +20,6 @@ use clap::Parser as _;
 fn main() -> Result<()> {
     env_logger::init();
     let options = Options::parse();
-
-    // Load and validate mapping.
-    let config: Config = serde_yaml::from_reader(std::io::stdin().lock())
-        .context("load mapping config")?;
-    let layers = config.render()?;
 
     // Find USB device and endpoint.
     let (device, desc) = find_device(&options).context("find USB device")?;
@@ -62,28 +58,41 @@ fn main() -> Result<()> {
     // Open device.
     let mut handle = device.open().context("open USB device")?;
     handle.claim_interface(intf.number())?;
-
-    // Apply keyboard mapping.
     let mut keyboard = Keyboard::new(handle, endpt_desc.address()).context("init keyboard")?;
-    for (layer_idx, layer) in layers.iter().enumerate() {
-        for (button_idx, macro_) in layer.buttons.iter().enumerate() {
-            if let Some(macro_) = macro_ {
-                keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), macro_)
-                    .context("bind key")?;
-                std::thread::sleep(std::time::Duration::from_millis(1000));
+
+    match options.command {
+        Command::Upload => {
+            // Load and validate mapping.
+            let config: Config = serde_yaml::from_reader(std::io::stdin().lock())
+                .context("load mapping config")?;
+            let layers = config.render()?;
+
+            // Apply keyboard mapping.
+            for (layer_idx, layer) in layers.iter().enumerate() {
+                for (button_idx, macro_) in layer.buttons.iter().enumerate() {
+                    if let Some(macro_) = macro_ {
+                        keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), macro_)
+                            .context("bind key")?;
+                        std::thread::sleep(std::time::Duration::from_millis(1000));
+                    }
+                }
+
+                for (knob_idx, knob) in layer.knobs.iter().enumerate() {
+                    if let Some(macro_) = &knob.ccw {
+                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCCW), macro_)?;
+                    }
+                    if let Some(macro_) = &knob.press {
+                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::Press), macro_)?;
+                    }
+                    if let Some(macro_) = &knob.cw {
+                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCW), macro_)?;
+                    }
+                }
             }
         }
 
-        for (knob_idx, knob) in layer.knobs.iter().enumerate() {
-            if let Some(macro_) = &knob.ccw {
-                keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCCW), macro_)?;
-            }
-            if let Some(macro_) = &knob.press {
-                keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::Press), macro_)?;
-            }
-            if let Some(macro_) = &knob.cw {
-                keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCW), macro_)?;
-            }
+        Command::Led(LedCommand { index }) => {
+            keyboard.set_led(index)?;
         }
     }
 

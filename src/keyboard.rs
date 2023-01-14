@@ -74,6 +74,13 @@ impl Keyboard {
         Ok(())
     }
 
+    pub fn set_led(&mut self, n: u8) -> Result<()> {
+        self.send([0xa1, 0x01, 0, 0, 0, 0, 0, 0])?;
+        self.send([0xb0, 0x18, n, 0, 0, 0, 0, 0])?;
+        self.send([0xaa, 0xa1, 0, 0, 0, 0, 0, 0])?;
+        Ok(())
+    }
+
     fn send(&mut self, pkt: [u8; 8]) -> Result<()> {
         self.buf[1..9].copy_from_slice(pkt.as_slice());
         debug!("send: {:02x?}", self.buf);
