@@ -1,4 +1,4 @@
-use crate::parse::{parse_accord, parse_macro};
+use crate::parse::{parse_accord, parse_macro, from_str};
 
 use std::{time::Duration, str::FromStr, fmt::Display};
 
@@ -281,14 +281,7 @@ impl FromStr for Accord {
     type Err = nom::error::Error<String>;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        use nom::sequence::terminated;
-        use nom::combinator::eof;
-        use nom::Finish as _;
-        match terminated(parse_accord, eof)(s).finish() {
-            Ok((_, accord)) => Ok(accord),
-            Err(nom::error::Error { input, code }) =>
-                Err(nom::error::Error { input: input.to_owned(), code }),
-        }
+        from_str(parse_accord, s)
     }
 }
 
@@ -351,13 +344,6 @@ impl FromStr for Macro {
     type Err = nom::error::Error<String>;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        use nom::sequence::terminated;
-        use nom::combinator::eof;
-        use nom::Finish as _;
-        match terminated(parse_macro, eof)(s).finish() {
-            Ok((_, accord)) => Ok(accord),
-            Err(nom::error::Error { input, code }) =>
-                Err(nom::error::Error { input: input.to_owned(), code }),
-        }
+        from_str(parse_macro, s)
     }
 }

@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use crate::consts::{VENDOR_ID, PRODUCT_ID};
+use crate::parse;
 
 #[derive(Parser)]
 pub struct Options {
@@ -11,6 +12,13 @@ pub struct Options {
 
     #[arg(long, default_value_t=PRODUCT_ID)]
     pub product_id: u16,
+
+    #[arg(long, value_parser=parse_address)]
+    pub address: Option<(u8, u8)>,
+}
+
+fn parse_address(s: &str) -> std::result::Result<(u8, u8), nom::error::Error<String>> {
+    parse::from_str(parse::parse_address, s)
 }
 
 #[derive(Subcommand)]

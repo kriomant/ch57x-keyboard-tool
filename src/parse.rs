@@ -1,9 +1,9 @@
 use nom::{
     IResult,
-    sequence::{tuple, terminated},
+    sequence::{tuple, terminated, separated_pair},
     multi::{fold_many0, separated_list1},
-    character::complete::{char, alpha1, alphanumeric1},
-    combinator::{map, map_res, complete, opt},
+    character::complete::{char, alpha1, alphanumeric1, digit1},
+    combinator::{map, map_res, complete, opt, all_consuming}, Parser,
 };
 
 use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier, MouseButton, MouseButtons, MouseAction, MediaCode};
@@ -75,6 +75,24 @@ pub fn parse_macro(s: &str) -> IResult<&str, Macro> {
         map(parse_media_event, Macro::Media),
     ));
     parser(s)
+}
+
+pub fn parse_address(s: &str) -> IResult<&str, (u8, u8)> {
+    let byte = || map_res(digit1, u8::from_str);
+    let mut parser = separated_pair(byte(), char(':'), byte());
+    parser(s)
+}
+
+pub fn from_str<'s, O, P>(parser: P, s: &'s str) -> std::result::Result<O, nom::error::Error<String>>
+where
+    for <'a> P: Parser<&'a str, O, nom::error::Error<&'a str>>,
+{
+    use nom::Finish as _;
+    match all_consuming(parser)(s).finish() {
+        Ok((_, value)) => Ok(value),
+        Err(nom::error::Error { input, code }) =>
+            Err(nom::error::Error { input: input.to_owned(), code }),
+    }
 }
 
 #[cfg(test)]

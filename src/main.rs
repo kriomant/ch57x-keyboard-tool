@@ -9,10 +9,11 @@ use crate::options::{Command, LedCommand};
 use crate::{options::Options, keyboard::Key};
 use crate::keyboard::{Keyboard, KnobAction};
 
-use anyhow::{anyhow, bail, ensure, Result};
+use anyhow::{anyhow, ensure, Result};
 use itertools::Itertools;
 use log::debug;
 use rusb::{Device, DeviceDescriptor, GlobalContext, TransferType};
+use indoc::indoc;
 
 use anyhow::Context as _;
 use clap::Parser as _;
@@ -100,6 +101,7 @@ fn main() -> Result<()> {
 }
 
 fn find_device(opts: &Options) -> Result<(Device<GlobalContext>, DeviceDescriptor)> {
+    let mut found = vec![];
     for device in rusb::devices().context("get USB device list")?.iter() {
         let desc = device.device_descriptor().context("get USB device info")?;
         debug!(
@@ -110,11 +112,53 @@ fn find_device(opts: &Options) -> Result<(Device<GlobalContext>, DeviceDescripto
             desc.product_id()
         );
         if desc.vendor_id() == opts.vendor_id && desc.product_id() == opts.product_id {
-            return Ok((device, desc));
+            found.push((device, desc));
+            continue
         }
     }
 
-    bail!(
-        "CH57x keyboard device not found. Use --vendor-id and --product-id to override settings."
-    );
+    match found.len() {
+        0 => Err(anyhow!(
+            "CH57x keyboard device not found. Use --vendor-id and --product-id to override settings."
+        )),
+        1 => Ok(found.pop().unwrap()),
+        _ => {
+            let mut addresses = vec![];
+            for (device, desc) in found {
+                /*let handle = device.open().context("open device")?;
+                let langs = handle.read_languages(DEFAULT_TIMEOUT).context("get langs")?;
+                dbg!(&langs);
+                let lang =
+                    // First try to find US English language
+                    langs.iter().find(|l| {
+                        l.primary_language() == PrimaryLanguage::English &&
+                        l.sub_language() == SubLanguage::UnitedStates
+                    })
+                    // Then any English sublanguage
+                    .or_else(|| langs.iter().find(|l| l.primary_language() == PrimaryLanguage::English))
+                    // Then just first available language
+                    .or_else(|| langs.first())
+                    // Ok, give up
+                    .ok_or_else(|| anyhow!("No languages found"))?;
+                dbg!(lang);
+                let serial = handle.read_serial_number_string(*lang, &desc, DEFAULT_TIMEOUT)
+                    .context("read serial")?;*/
+                let address = (device.bus_number(), device.address());
+                if opts.address.as_ref() == Some(&address) {
+                    return Ok((device, desc))
+                }
+
+                addresses.push(address);
+            }
+
+            Err(anyhow!(indoc! {"
+                Several compatible devices are found.
+                Unfortunately, this model of keyboard doesn't have serial number.
+                So specify USB address using --address option.
+                
+                Addresses:
+                {}
+            "}, addresses.iter().map(|(bus, addr)| format!("{bus}:{addr}")).join("\n")))
+        }
+    }
 }
