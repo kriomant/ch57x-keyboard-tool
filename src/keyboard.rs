@@ -221,7 +221,7 @@ pub enum Code {
     F10,
     F11,
     F12,
-    PrintScree,
+    PrintScreen,
     ScrollLock,
     Pause,
     Insert,
