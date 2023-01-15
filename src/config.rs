@@ -18,8 +18,13 @@ impl Config {
     /// and knobs taking orientation into account.
     pub fn render(self) -> Result<Vec<FlatLayer>> {
         self.layers.into_iter().enumerate().map(|(i, layer)| {
-            ensure!(layer.buttons.len() == self.rows as usize, "Invalid number of button rows in layer {i}");
-            ensure!(layer.buttons.iter().all(|row| row.len() == self.columns as usize), "Invalid number of button columns in layer {i}");
+            let (orows, ocols) = if self.orientation.is_horizontal() {
+                (self.rows, self.columns)
+            } else {
+                (self.columns, self.rows)
+            };
+            ensure!(layer.buttons.len() == orows as usize, "Invalid number of button rows in layer {i}");
+            ensure!(layer.buttons.iter().all(|row| row.len() == ocols as usize), "Invalid number of button columns in layer {i}");
             ensure!(layer.knobs.len() == self.knobs as usize, "Invalid number of knobs in layer {i}");
 
             let buttons = reorient_grid(self.orientation, self.rows as usize, self.columns as usize, layer.buttons);
@@ -37,6 +42,12 @@ pub enum Orientation {
     UpsideDown,
     Clockwise,
     CounterClockwise,
+}
+
+impl Orientation {
+    pub fn is_horizontal(self) -> bool {
+        self == Orientation::Normal || self == Orientation::UpsideDown
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -62,8 +73,8 @@ fn reorient_grid<T: Clone>(orientation: Orientation, rows: usize, cols: usize, d
     let tr = match orientation {
         Orientation::Normal =>           |r, c, _rows, _cols| (r, c),
         Orientation::UpsideDown =>       |r, c,  rows,  cols| (rows-r-1, cols-c-1),
-        Orientation::Clockwise =>        |r, c, _rows,  cols| (c, cols-r),
-        Orientation::CounterClockwise => |r, c,  rows, _cols| (rows-c, r),
+        Orientation::Clockwise =>        |r, c,  rows, _cols| (c, rows-r-1),
+        Orientation::CounterClockwise => |r, c, _rows,  cols| (cols-c-1, r),
     };
     (0..rows*cols).map(|i| {
         let (r, c) = tr(i / cols, i % cols, rows, cols);
@@ -86,7 +97,7 @@ fn reorient_row<T>(orientation: Orientation, mut data: Vec<T>) -> Vec<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::Config;
+    use super::{Config, reorient_grid, Orientation};
 
     use std::path::PathBuf;
 
@@ -100,5 +111,39 @@ mod tests {
         let config: Config = serde_yaml::from_reader(file)?;
         config.render()?;
         Ok(())
+    }
+
+    #[test]
+    fn test_reorient_grid() {
+        assert_eq!(
+            reorient_grid(Orientation::Normal, 2, 3, vec![
+                vec![1, 2, 3],
+                vec![4, 5, 6],
+            ]),
+            vec![1, 2, 3, 4, 5, 6],
+        );
+        assert_eq!(
+            reorient_grid(Orientation::UpsideDown, 2, 3, vec![
+                vec![1, 2, 3],
+                vec![4, 5, 6],
+            ]),
+            vec![6, 5, 4, 3, 2, 1],
+        );
+        assert_eq!(
+            reorient_grid(Orientation::Clockwise, 2, 3, vec![
+                vec![1, 2],
+                vec![3, 4],
+                vec![5, 6],
+            ]),
+            vec![2, 4, 6, 1, 3, 5],
+        );
+        assert_eq!(
+            reorient_grid(Orientation::CounterClockwise, 2, 3, vec![
+                vec![1, 2],
+                vec![3, 4],
+                vec![5, 6],
+            ]),
+            vec![5, 3, 1, 6, 4, 2],
+        );
     }
 }
