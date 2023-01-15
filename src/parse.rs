@@ -1,20 +1,28 @@
+///! Collection of NOM parsers for various things.
+///! Generally only `parse` and `from_str` functions should be called
+///! from outside of this module, they ensures that whole input is
+///! consumed.
+///! Other functions are composable parsers for use within this module
+///! or as parameters for functions mentioned above.
+
 use nom::{
-    IResult,
+    Parser, IResult, InputLength,
     sequence::{tuple, terminated, separated_pair},
     multi::{fold_many0, separated_list1},
     character::complete::{char, alpha1, alphanumeric1, digit1},
-    combinator::{map, map_res, complete, opt, all_consuming}, Parser,
+    combinator::{map, map_res, complete, opt, all_consuming},
+    error::ParseError,
 };
 
 use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier, MouseButton, MouseButtons, MouseAction, MediaCode};
 
 use std::str::FromStr;
 
-pub fn parse_mouse_modifier(s: &str) -> IResult<&str, MouseModifier> {
+fn mouse_modifier(s: &str) -> IResult<&str, MouseModifier> {
     map_res(alpha1, MouseModifier::from_str)(s)
 }
 
-pub fn parse_modifiers(s: &str) -> IResult<&str, Modifiers> {
+fn modifiers(s: &str) -> IResult<&str, Modifiers> {
     let modifier = map_res(alpha1, Modifier::from_str);
     let mut modifiers = fold_many0(
         terminated(modifier, char('-')),
@@ -24,21 +32,21 @@ pub fn parse_modifiers(s: &str) -> IResult<&str, Modifiers> {
     modifiers(s)
 }
 
-pub fn parse_media_event(s: &str) -> IResult<&str, MediaCode> {
+fn media_code(s: &str) -> IResult<&str, MediaCode> {
     map_res(alpha1, MediaCode::from_str)(s)
 }
 
-pub fn parse_accord(s: &str) -> IResult<&str, Accord> {
+pub fn accord(s: &str) -> IResult<&str, Accord> {
     // Key code
     let code = alphanumeric1;
     let code = map_res(code, FromStr::from_str);
 
-    let accord = complete(tuple((parse_modifiers, code)));
+    let accord = complete(tuple((modifiers, code)));
     let mut accord = map(accord, |t| t.into());
     accord(s)
 }
 
-pub fn parse_mouse_event(s: &str) -> IResult<&str, MouseEvent> {
+fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
     use nom::branch::alt;
     use nom::combinator::value;
     use nom::bytes::complete::tag;
@@ -58,7 +66,7 @@ pub fn parse_mouse_event(s: &str) -> IResult<&str, MouseEvent> {
 
     let mut event = map(
         tuple((
-            opt(terminated(parse_mouse_modifier, char('-'))),
+            opt(terminated(mouse_modifier, char('-'))),
             alt((click, wheel)),
         )),
         |(modifier, action)| MouseEvent(action, modifier)
@@ -67,29 +75,41 @@ pub fn parse_mouse_event(s: &str) -> IResult<&str, MouseEvent> {
     event(s)
 }
 
-pub fn parse_macro(s: &str) -> IResult<&str, Macro> {
+pub fn r#macro(s: &str) -> IResult<&str, Macro> {
     use nom::branch::alt;
     let mut parser = alt((
-        map(separated_list1(char(','), parse_accord), Macro::Keyboard),
-        map(parse_mouse_event, Macro::Mouse),
-        map(parse_media_event, Macro::Media),
+        map(separated_list1(char(','), accord), Macro::Keyboard),
+        map(mouse_event, Macro::Mouse),
+        map(media_code, Macro::Media),
     ));
     parser(s)
 }
 
-pub fn parse_address(s: &str) -> IResult<&str, (u8, u8)> {
+pub fn address(s: &str) -> IResult<&str, (u8, u8)> {
     let byte = || map_res(digit1, u8::from_str);
     let mut parser = separated_pair(byte(), char(':'), byte());
     parser(s)
 }
 
-pub fn from_str<'s, O, P>(parser: P, s: &'s str) -> std::result::Result<O, nom::error::Error<String>>
+/// Parses string with given parser ensuring that whole input is consumed.
+pub fn parse<I, O, E, P>(parser: P, input: I) -> std::result::Result<O, E>
+where
+    I: InputLength,
+    E: ParseError<I>,
+    P: Parser<I, O, E>,
+{
+    use nom::Finish as _;
+    all_consuming(parser)(input).finish().map(|(_, value)| value)
+}
+
+/// Parses string using given parser, as `parse` do, but also converts string reference
+/// in returned error to String, so it may be used in implementations of `FromStr`.
+pub fn from_str<O, P>(parser: P, s: &str) -> std::result::Result<O, nom::error::Error<String>>
 where
     for <'a> P: Parser<&'a str, O, nom::error::Error<&'a str>>,
 {
-    use nom::Finish as _;
-    match all_consuming(parser)(s).finish() {
-        Ok((_, value)) => Ok(value),
+    match parse(parser, s) {
+        Ok(value) => Ok(value),
         Err(nom::error::Error { input, code }) =>
             Err(nom::error::Error { input: input.to_owned(), code }),
     }

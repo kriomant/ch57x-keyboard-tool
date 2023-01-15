@@ -18,7 +18,7 @@ pub struct Options {
 }
 
 fn parse_address(s: &str) -> std::result::Result<(u8, u8), nom::error::Error<String>> {
-    parse::from_str(parse::parse_address, s)
+    parse::from_str(parse::address, s)
 }
 
 #[derive(Subcommand)]

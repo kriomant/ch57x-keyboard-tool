@@ -1,4 +1,4 @@
-use crate::parse::{parse_accord, parse_macro, from_str};
+use crate::parse;
 
 use std::{time::Duration, str::FromStr, fmt::Display};
 
@@ -281,7 +281,7 @@ impl FromStr for Accord {
     type Err = nom::error::Error<String>;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        from_str(parse_accord, s)
+        parse::from_str(parse::accord, s)
     }
 }
 
@@ -344,6 +344,6 @@ impl FromStr for Macro {
     type Err = nom::error::Error<String>;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        from_str(parse_macro, s)
+        parse::from_str(parse::r#macro, s)
     }
 }
