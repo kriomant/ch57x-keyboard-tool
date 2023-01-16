@@ -7,14 +7,16 @@
 
 use nom::{
     Parser, IResult, InputLength,
+    branch::alt,
     sequence::{tuple, terminated, separated_pair},
-    multi::{fold_many0, separated_list1},
+    multi::separated_list1,
+    bytes::complete::tag,
     character::complete::{char, alpha1, alphanumeric1, digit1},
-    combinator::{map, map_res, complete, opt, all_consuming},
-    error::ParseError,
+    combinator::{map, map_res, opt, all_consuming, value},
+    error::{ParseError, Error, FromExternalError, ErrorKind},
 };
 
-use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier, MouseButton, MouseButtons, MouseAction, MediaCode};
+use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier, MouseButton, MouseButtons, MouseAction, MediaCode, Code};
 
 use std::str::FromStr;
 
@@ -22,35 +24,28 @@ fn mouse_modifier(s: &str) -> IResult<&str, MouseModifier> {
     map_res(alpha1, MouseModifier::from_str)(s)
 }
 
-fn modifiers(s: &str) -> IResult<&str, Modifiers> {
-    let modifier = map_res(alpha1, Modifier::from_str);
-    let mut modifiers = fold_many0(
-        terminated(modifier, char('-')),
-        Modifiers::empty,
-        |mods, m| { mods | m }
-    );
-    modifiers(s)
-}
-
 fn media_code(s: &str) -> IResult<&str, MediaCode> {
     map_res(alpha1, MediaCode::from_str)(s)
 }
 
 pub fn accord(s: &str) -> IResult<&str, Accord> {
-    // Key code
-    let code = alphanumeric1;
-    let code = map_res(code, FromStr::from_str);
+    let (s, parts) = separated_list1(char('-'), alphanumeric1)(s)?;
+    let (mods, code) = match Code::from_str(parts[parts.len()-1]) {
+        Ok(code) => (&parts[0..parts.len()-1], Some(code)),
+        Err(_) => (&parts[..], None),
+    };
 
-    let accord = complete(tuple((modifiers, code)));
-    let mut accord = map(accord, |t| t.into());
-    accord(s)
+    let modifiers = mods.iter()
+        .map(|m| Modifier::from_str(m)
+            .map_err(|e| nom::Err::Failure(Error::from_external_error(*m, ErrorKind::MapRes, e)))
+        )
+        .collect::<Result<Vec<_>, _>>()?
+        .iter()
+        .fold(Modifiers::empty(), |mods, m| mods | *m);
+    Ok((s, Accord::new(modifiers, code)))
 }
 
 fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
-    use nom::branch::alt;
-    use nom::combinator::value;
-    use nom::bytes::complete::tag;
-
     let button = alt((
         value(MouseButton::Left, alt((tag("click"), tag("lclick")))),
         value(MouseButton::Right, tag("rclick")),
@@ -76,11 +71,10 @@ fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
 }
 
 pub fn r#macro(s: &str) -> IResult<&str, Macro> {
-    use nom::branch::alt;
     let mut parser = alt((
-        map(separated_list1(char(','), accord), Macro::Keyboard),
         map(mouse_event, Macro::Mouse),
         map(media_code, Macro::Media),
+        map(separated_list1(char(','), accord), Macro::Keyboard),
     ));
     parser(s)
 }
@@ -121,11 +115,12 @@ mod tests {
 
     #[test]
     fn parse_accord() {
-        assert_eq!("A".parse(), Ok(Accord::new(Modifiers::empty(), Code::A)));
-        assert_eq!("a".parse(), Ok(Accord::new(Modifiers::empty(), Code::A)));
-        assert_eq!("f1".parse(), Ok(Accord::new(Modifiers::empty(), Code::F1)));
-        assert_eq!("ctrl-A".parse(), Ok(Accord::new(Modifier::Ctrl, Code::A)));
-        assert_eq!("win-ctrl-A".parse(), Ok(Accord::new(Modifier::Win | Modifier::Ctrl, Code::A)));
+        assert_eq!("A".parse(), Ok(Accord::new(Modifiers::empty(), Some(Code::A))));
+        assert_eq!("a".parse(), Ok(Accord::new(Modifiers::empty(), Some(Code::A))));
+        assert_eq!("f1".parse(), Ok(Accord::new(Modifiers::empty(), Some(Code::F1))));
+        assert_eq!("ctrl-A".parse(), Ok(Accord::new(Modifier::Ctrl, Some(Code::A))));
+        assert_eq!("win-ctrl-A".parse(), Ok(Accord::new(Modifier::Win | Modifier::Ctrl, Some(Code::A))));
+        assert_eq!("win-ctrl".parse(), Ok(Accord::new(Modifier::Win | Modifier::Ctrl, None)));
 
         assert!("a1".parse::<Accord>().is_err());
         assert!("a+".parse::<Accord>().is_err());
@@ -134,12 +129,12 @@ mod tests {
     #[test]
     fn parse_macro() {
         assert_eq!("A,B".parse(), Ok(Macro::Keyboard(vec![
-            Accord::new(Modifiers::empty(), Code::A),
-            Accord::new(Modifiers::empty(), Code::B),
+            Accord::new(Modifiers::empty(), Some(Code::A)),
+            Accord::new(Modifiers::empty(), Some(Code::B)),
         ])));
         assert_eq!("ctrl-A,alt-backspace".parse(), Ok(Macro::Keyboard(vec![
-            Accord::new(Modifier::Ctrl, Code::A),
-            Accord::new(Modifier::Alt, Code::Backspace),
+            Accord::new(Modifier::Ctrl, Some(Code::A)),
+            Accord::new(Modifier::Alt, Some(Code::Backspace)),
         ])));
         assert_eq!("click".parse(), Ok(Macro::Mouse(
             MouseEvent(MouseAction::Click(MouseButton::Left.into()), None)

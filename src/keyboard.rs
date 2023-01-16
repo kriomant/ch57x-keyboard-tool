@@ -37,7 +37,7 @@ impl Keyboard {
             Macro::Keyboard(presses) => {
                 ensure!(presses.len() <= 5, "macro sequence is too long");
                 // For whatever reason empty key is added before others.
-                let iter = presses.iter().map(|accord| (accord.modifiers.as_u8(), accord.code as u8));
+                let iter = presses.iter().map(|accord| (accord.modifiers.as_u8(), accord.code.map_or(0, |c| c as u8)));
                 let (len, items) = (presses.len() as u8, Box::new(std::iter::once((0, 0)).chain(iter)));
                 for (i, (modifiers, code)) in items.enumerate() {
                     self.send([
@@ -260,19 +260,19 @@ pub enum Code {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DeserializeFromStr)]
 pub struct Accord {
     pub modifiers: Modifiers,
-    pub code: Code,
+    pub code: Option<Code>,
 }
 
 impl Accord {
-    pub fn new<M>(modifiers: M, code: Code) -> Self
+    pub fn new<M>(modifiers: M, code: Option<Code>) -> Self
         where M: Into<Modifiers>
     {
         Self { modifiers: modifiers.into(), code }
     }
 }
 
-impl From<(Modifiers, Code)> for Accord {
-    fn from((modifiers, code): (Modifiers, Code)) -> Self {
+impl From<(Modifiers, Option<Code>)> for Accord {
+    fn from((modifiers, code): (Modifiers, Option<Code>)) -> Self {
         Self { modifiers, code }
     }
 }
@@ -287,10 +287,20 @@ impl FromStr for Accord {
 
 impl Display for Accord {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut empty = true;
         for m in self.modifiers {
-            write!(f, "{}-", m)?;
+            if !empty {
+                write!(f, "-")?;
+            }
+            write!(f, "{}", m)?;
+            empty = false;
         }
-        write!(f, "{}", self.code)?;
+        if let Some(code) = self.code {
+            if !empty {
+                write!(f, "-")?;
+            }
+            write!(f, "{}", code)?;
+        }
         Ok(())
     }
 }
