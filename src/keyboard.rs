@@ -9,6 +9,8 @@ use enumset::{EnumSetType, EnumSet};
 use serde_with::DeserializeFromStr;
 use strum_macros::{EnumString, Display};
 
+use itertools::Itertools as _;
+
 const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
 
 pub struct Keyboard {
@@ -29,6 +31,8 @@ impl Keyboard {
 
     pub fn bind_key(&mut self, layer: u8, key: Key, expansion: &Macro) -> Result<()> {
         ensure!(layer <= 15, "invalid layer index");
+
+        debug!("bind {} on layer {} to {}", key, layer, expansion);
 
         // Start key binding
         self.send([0xa1, layer+1, 0, 0, 0, 0, 0, 0])?;
@@ -92,11 +96,14 @@ impl Keyboard {
 }
 
 #[allow(unused)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Display)]
 #[repr(u8)]
 pub enum KnobAction {
+    #[strum(serialize="ccw")]
     RotateCCW,
+    #[strum(serialize="press")]
     Press,
+    #[strum(serialize="cw")]
     RotateCW,
 }
 
@@ -105,6 +112,15 @@ pub enum Key {
     Button(u8),
     #[allow(unused)]
     Knob(u8, KnobAction),
+}
+
+impl Display for Key {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Button(n) => write!(f, "button {}", n),
+            Self::Knob(n, action) => write!(f, "knob {} {}", n, action),
+        }
+    }
 }
 
 impl Key {
@@ -287,16 +303,9 @@ impl FromStr for Accord {
 
 impl Display for Accord {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut empty = true;
-        for m in self.modifiers {
-            if !empty {
-                write!(f, "-")?;
-            }
-            write!(f, "{}", m)?;
-            empty = false;
-        }
+        write!(f, "{}", self.modifiers.iter().format("-"))?;
         if let Some(code) = self.code {
-            if !empty {
+            if !self.modifiers.is_empty() {
                 write!(f, "-")?;
             }
             write!(f, "{}", code)?;
@@ -314,9 +323,14 @@ pub enum MouseModifier {
     Alt = 0x04,
 }
 
-#[derive(Debug, EnumSetType)]
+#[derive(Debug, EnumSetType, Display)]
 pub enum MouseButton {
-    Left, Right, Middle
+    #[strum(serialize="click")]
+    Left,
+    #[strum(serialize="rclick")]
+    Right,
+    #[strum(serialize="mclick")]
+    Middle
 }
 
 pub type MouseButtons = EnumSet<MouseButton>;
@@ -328,8 +342,32 @@ pub enum MouseAction {
     WheelDown,
 }
 
+impl Display for MouseAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MouseAction::Click(buttons) => {
+                write!(f, "{}", buttons.iter().format("+"))?;
+            }
+            MouseAction::WheelUp => { write!(f, "wheelup")?; }
+            MouseAction::WheelDown => { write!(f, "wheeldown")?; }
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MouseEvent(pub MouseAction, pub Option<MouseModifier>);
+
+impl Display for MouseEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self(action, modifier) = self;
+        if let Some(modifier) = modifier {
+            write!(f, "{}-", modifier)?;
+        }
+        write!(f, "{}", action)?;
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, DeserializeFromStr)]
 pub enum Macro {
@@ -355,5 +393,21 @@ impl FromStr for Macro {
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         parse::from_str(parse::r#macro, s)
+    }
+}
+
+impl Display for Macro {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Macro::Keyboard(accords) => {
+                write!(f, "{}", accords.iter().format(","))
+            }
+            Macro::Media(code) => {
+                write!(f, "{}", code)
+            }
+            Macro::Mouse(event) => {
+                write!(f, "{}", event)
+            }
+        }
     }
 }
