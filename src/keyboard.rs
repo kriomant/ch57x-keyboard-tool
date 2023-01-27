@@ -90,7 +90,6 @@ impl Keyboard {
         debug!("send: {:02x?}", self.buf);
         let written = self.handle.write_interrupt(self.endpoint, &self.buf, DEFAULT_TIMEOUT)?;
         ensure!(written == self.buf.len(), "not all data written");
-        std::thread::sleep(std::time::Duration::from_millis(100));
         Ok(())
     }
 }

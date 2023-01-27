@@ -74,7 +74,6 @@ fn main() -> Result<()> {
                     if let Some(macro_) = macro_ {
                         keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), macro_)
                             .context("bind key")?;
-                        std::thread::sleep(std::time::Duration::from_millis(1000));
                     }
                 }
 
