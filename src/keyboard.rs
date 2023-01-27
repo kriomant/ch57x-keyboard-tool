@@ -138,7 +138,9 @@ impl Key {
 pub enum Modifier {
     Ctrl,
     Shift,
+    #[strum(serialize="alt", serialize="opt")]
     Alt,
+    #[strum(serialize="win", serialize="cmd")]
     Win,
     #[strum(serialize="rctrl")]
     RightCtrl,
