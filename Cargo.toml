@@ -6,6 +6,9 @@ description = "Command-line tool for programming ch57x keyboard"
 license = "MIT OR Apache-2.0"
 keywords = ["keyboard", "keypad", "firmware", "ch57x"]
 categories = ["command-line-utilities", "hardware-support"]
+homepage = "https://github.com/kriomant/ch57x-keyboard-tool"
+repository = "https://github.com/kriomant/ch57x-keyboard-tool.git"
+documentation = "https://docs.rs/crate/ch57x-keyboard-tool"
 
 [dependencies]
 rusb = "0.9"
