@@ -3,6 +3,9 @@
 This is an utility for programming small keyboards like this one:
 
 ![](doc/keyboard-12-2.png)
+
+or this one:
+
 ![](doc/keyboard-3-1.jpg)
 
 
