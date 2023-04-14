@@ -15,7 +15,7 @@ There are several modifications of such keyboards with different number of
 buttons and knobs. Utility was tested to work with:
  * 3×3 with 2 knobs
  * 3×4 with 2 knobs (Bluetooth version)
- * 3x2 with 1 knob 
+ * 3x2 with 1 knob (1189:8890)
  * 1x3 with 1 knob
  
 Such keyboards are popular on AliExpress and seller usually sends software
