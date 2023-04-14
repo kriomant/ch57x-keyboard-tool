@@ -3,7 +3,7 @@ use crate::parse;
 use std::{time::Duration, str::FromStr, fmt::Display};
 
 use log::debug;
-use rusb::{DeviceHandle, GlobalContext};
+use rusb::{DeviceHandle, Context};
 use anyhow::{anyhow, ensure, Result};
 use enumset::{EnumSetType, EnumSet};
 use serde_with::DeserializeFromStr;
@@ -14,14 +14,14 @@ use itertools::Itertools as _;
 const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
 
 pub struct Keyboard {
-    handle: DeviceHandle<GlobalContext>,
+    handle: DeviceHandle<Context>,
     endpoint: u8,
-    buf: [u8; 65],
+    buf: [u8; 64],
 }
 
 impl Keyboard {
-    pub fn new(handle: DeviceHandle<GlobalContext>, endpoint: u8) -> Result<Self> {
-        let mut keyboard = Self { handle, endpoint, buf: [0; 65] };
+    pub fn new(handle: DeviceHandle<Context>, endpoint: u8) -> Result<Self> {
+        let mut keyboard = Self { handle, endpoint, buf: [0; 64] };
 
         keyboard.buf[0] = 0x03;
         keyboard.send([0, 0, 0, 0, 0, 0, 0, 0])?;

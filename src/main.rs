@@ -12,11 +12,12 @@ use crate::keyboard::{Keyboard, KnobAction};
 use anyhow::{anyhow, ensure, Result};
 use itertools::Itertools;
 use log::debug;
-use rusb::{Device, DeviceDescriptor, GlobalContext, TransferType};
+use rusb::{Device, DeviceDescriptor, Context, TransferType};
 use indoc::indoc;
 
 use anyhow::Context as _;
 use clap::Parser as _;
+use rusb::UsbContext as _;
 
 fn main() -> Result<()> {
     env_logger::init();
@@ -58,7 +59,8 @@ fn main() -> Result<()> {
 
     // Open device.
     let mut handle = device.open().context("open USB device")?;
-    handle.claim_interface(intf.number())?;
+    let _ = handle.set_auto_detach_kernel_driver(true);
+    handle.claim_interface(intf.number()).context("claim interface")?;
     let mut keyboard = Keyboard::new(handle, endpt_desc.address()).context("init keyboard")?;
 
     match options.command {
@@ -99,9 +101,14 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn find_device(opts: &Options) -> Result<(Device<GlobalContext>, DeviceDescriptor)> {
+fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor)> {
+    let options = vec![
+        #[cfg(windows)] rusb::UsbOption::use_usbdk(),
+    ];
+    let usb_context = rusb::Context::with_options(&options)?;
+
     let mut found = vec![];
-    for device in rusb::devices().context("get USB device list")?.iter() {
+    for device in usb_context.devices().context("get USB device list")?.iter() {
         let desc = device.device_descriptor().context("get USB device info")?;
         debug!(
             "Bus {:03} Device {:03} ID {:04x}:{:04x}",

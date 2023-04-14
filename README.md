@@ -29,11 +29,20 @@ for programming, but it:
  * can only program one key at a time
  * don't expose all keyboard features
 
-# How to use?
+# How to get it?
 
-Sorry, right now there are no prebuilt binaries, may be fixed later.
+## Get prebuilt release
+
+Download latest release from [GitHub releases](https://github.com/kriomant/ch57x-keyboard-tool/releases)
+
+## Build it yourself
+
 Install *cargo* utility using [rustup](https://rustup.rs/), then execute
 `cargo install ch57x-keyboard-tool`.
+
+# How to use?
+
+**Note**: on Windows you need to install [USBDK](https://github.com/daynix/UsbDk/releases) first.
 
 Now create you own config from provided *example-mapping.yaml*, and apply:
 
