@@ -23,6 +23,9 @@ fn parse_address(s: &str) -> std::result::Result<(u8, u8), nom::error::Error<Str
 
 #[derive(Subcommand)]
 pub enum Command {
+    /// Validate key mappings config on stdin
+    Validate,
+
     /// Upload key mappings from stdin to device
     Upload,
 
