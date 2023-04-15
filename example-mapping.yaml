@@ -36,7 +36,8 @@ layers:
       # You may combine several accords into sequence using comma: 'ctrl-v,ctrl-c'.
       - ["a", "ctrl-a", "alt-shift", "alt-ctrl,ctrl-b"]
       - ["e", "f", "g", "h"]
-      - ["i", "j", "k", "l"]
+      # Arbitrary scan code may be given like this: "<101>", code is decimal.
+      - ["<100>", "j", "k", "l"]
     knobs:
       # Knobs are numbered from left to right in horizontal orientation
       # and from top to bottom in vertical one.

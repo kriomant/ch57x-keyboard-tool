@@ -41,7 +41,7 @@ impl Keyboard {
             Macro::Keyboard(presses) => {
                 ensure!(presses.len() <= 5, "macro sequence is too long");
                 // For whatever reason empty key is added before others.
-                let iter = presses.iter().map(|accord| (accord.modifiers.as_u8(), accord.code.map_or(0, |c| c as u8)));
+                let iter = presses.iter().map(|accord| (accord.modifiers.as_u8(), accord.code.map_or(0, |c| c.value())));
                 let (len, items) = (presses.len() as u8, Box::new(std::iter::once((0, 0)).chain(iter)));
                 for (i, (modifiers, code)) in items.enumerate() {
                     self.send([
@@ -168,10 +168,39 @@ pub enum MediaCode {
 	VolumeDown = 0xea,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+pub enum Code {
+    WellKnown(WellKnownCode),
+    Custom(u8),
+}
+
+impl From<WellKnownCode> for Code {
+    fn from(code: WellKnownCode) -> Self {
+        Self::WellKnown(code)
+    }
+}
+
+impl FromStr for Code {
+    type Err = nom::error::Error<String>;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        parse::from_str(parse::code, s)
+    }
+}
+
+impl Code {
+    pub fn value(self) -> u8 {
+        match self {
+            Self::WellKnown(code) => code as u8,
+            Self::Custom(code) => code,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, Display)]
 #[repr(u8)]
 #[strum(ascii_case_insensitive)]
-pub enum Code {
+pub enum WellKnownCode {
     A = 0x04,
     B,
     C,
