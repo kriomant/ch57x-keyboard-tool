@@ -52,7 +52,7 @@ pub fn accord(s: &str) -> IResult<&str, Accord> {
     let mut parser = alt((
         // <code>
         map(code,
-            |code| Accord {modifiers: Modifiers::empty(), code: Some(code)}),
+            |code| Accord::new(Modifiers::empty(), Some(code))),
 
         // (<modifier> '-')* (<code>|<modifier>)?
         map(pair(
@@ -64,8 +64,8 @@ pub fn accord(s: &str) -> IResult<&str, Accord> {
                 map(modifier, Fix::Modifier),
             )),
         ), |(mods, fix)| match fix {
-            Fix::Code(code) => Accord {modifiers: mods, code: Some(code)},
-            Fix::Modifier(m) => Accord {modifiers: mods | m, code: None},
+            Fix::Code(code) => Accord::new(mods, Some(code)),
+            Fix::Modifier(m) => Accord::new(mods | m, None),
         })
     ));
     parser(s)
