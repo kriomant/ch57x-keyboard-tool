@@ -46,7 +46,16 @@ Install *cargo* utility using [rustup](https://rustup.rs/), then execute
 
 **Note**: on Windows you need to install [USBDK](https://github.com/daynix/UsbDk/releases) first.
 
-Now create you own config from provided *example-mapping.yaml*, and apply:
+Now create you own config from provided *example-mapping.yaml*. Example
+config has extensive documentation and examples inside.
+
+You can validate config:
+
+    ch57x-keyboard-tool validate < your-config.yaml
+
+Use 'show-keys' command to list all supported modifier and key names.
+
+Finally, upload config to keyboard:
 
     ch57x-keyboard-tool upload < your-config.yaml
 

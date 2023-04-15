@@ -7,7 +7,7 @@ mod parse;
 use crate::config::Config;
 use crate::options::{Command, LedCommand};
 use crate::{options::Options, keyboard::Key};
-use crate::keyboard::{Keyboard, KnobAction};
+use crate::keyboard::{Keyboard, KnobAction, Modifier, WellKnownCode, MediaCode, MouseAction, MouseButton};
 
 use anyhow::{anyhow, ensure, Result};
 use itertools::Itertools;
@@ -18,12 +18,44 @@ use indoc::indoc;
 use anyhow::Context as _;
 use clap::Parser as _;
 use rusb::UsbContext as _;
+use strum::IntoEnumIterator as _;
+use strum::EnumMessage as _;
 
 fn main() -> Result<()> {
     env_logger::init();
     let options = Options::parse();
 
     match options.command {
+        Command::ShowKeys => {
+            println!("Modifiers: ");
+            for m in Modifier::iter() {
+                println!(" - {}", m.get_serializations().iter().join(" / "));
+            }
+
+            println!();
+            println!("Keys:");
+            for c in WellKnownCode::iter() {
+                println!(" - {c}");
+            }
+
+            println!();
+            println!("Custom key syntax (use decimal code): <110>");
+
+            println!();
+            println!("Media keys:");
+            for c in MediaCode::iter() {
+                println!(" - {}", c.get_serializations().iter().join(" / "));
+            }
+
+            println!();
+            println!("Mouse actions:");
+            println!(" - {}", MouseAction::WheelDown);
+            println!(" - {}", MouseAction::WheelUp);
+            for b in MouseButton::iter() {
+                println!(" - {b}");
+            }
+        }
+
         Command::Validate => {
             // Load and validate mapping.
             let config: Config = serde_yaml::from_reader(std::io::stdin().lock())

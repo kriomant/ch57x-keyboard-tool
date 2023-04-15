@@ -7,7 +7,7 @@ use rusb::{DeviceHandle, Context};
 use anyhow::{anyhow, ensure, Result};
 use enumset::{EnumSetType, EnumSet};
 use serde_with::DeserializeFromStr;
-use strum_macros::{EnumString, Display};
+use strum_macros::{EnumString, Display, EnumIter, EnumMessage};
 
 use itertools::Itertools as _;
 
@@ -133,10 +133,12 @@ impl Key {
     }
 }
 
-#[derive(Debug, EnumSetType, EnumString, Display)]
+#[derive(Debug, EnumSetType, EnumString, EnumIter, EnumMessage, Display)]
 #[strum(ascii_case_insensitive)]
 pub enum Modifier {
+    #[strum(serialize="ctrl")]
     Ctrl,
+    #[strum(serialize="shift")]
     Shift,
     #[strum(serialize="alt", serialize="opt")]
     Alt,
@@ -146,17 +148,18 @@ pub enum Modifier {
     RightCtrl,
     #[strum(serialize="rshift")]
     RightShift,
-    #[strum(serialize="ralt")]
+    #[strum(serialize="ralt", serialize="ropt")]
     RightAlt,
-    #[strum(serialize="rwin")]
+    #[strum(serialize="rwin", serialize="rcmd")]
     RightWin,
 }
 
 pub type Modifiers = EnumSet<Modifier>;
 
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumIter, EnumMessage, Display)]
 #[repr(u8)]
+#[strum(serialize_all="lowercase")]
 #[strum(ascii_case_insensitive)]
 pub enum MediaCode {
 	Play = 0xcd,
@@ -197,9 +200,10 @@ impl Code {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumIter, Display)]
 #[repr(u8)]
 #[strum(ascii_case_insensitive)]
+#[strum(serialize_all="lowercase")]
 pub enum WellKnownCode {
     A = 0x04,
     B,
@@ -365,7 +369,7 @@ pub enum MouseModifier {
     Alt = 0x04,
 }
 
-#[derive(Debug, EnumSetType, Display)]
+#[derive(Debug, EnumSetType, EnumIter, Display)]
 pub enum MouseButton {
     #[strum(serialize="click")]
     Left,
