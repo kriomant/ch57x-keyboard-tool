@@ -65,6 +65,13 @@ You can also change LED configuration, if you keyboard supports it:
 
 # Notes
 
+## Number of layers
+
+All keyboards I've seen have three layer (three keys configuration which
+may be switched). However I've been told there are keyboards without
+layer switch. If so, just keep single layer in configuration file and you
+are done.
+
 ## Custom keyboard layouts
 
 If you use custom keyboard layout, like Dvorak, note that what you
