@@ -63,6 +63,16 @@ You can also change LED configuration, if you keyboard supports it:
 
     ch57x-keyboard-tool led 1
 
+# Notes
+
+## Custom keyboard layouts
+
+If you use custom keyboard layout, like Dvorak, note that what you
+write in configuration is in fact scan code of keyboard key and not
+character that will be produced.
+
+So use QWERTY-letter of keyboard key you want to press.
+
 # Diagnostics
 
 If you have any troubles using this software, please provide diagnostics.
