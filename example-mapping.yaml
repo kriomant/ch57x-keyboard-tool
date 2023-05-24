@@ -1,26 +1,26 @@
-# Natural keyboard orienation is when buttons are on the left
-# side and knobs are on the right. However you may want to use
-# keyboard in another orienation. To avoid remapping button
-# positions in your head, just given it here.
+# Normal keyboard orienation is when buttons are on the left
+# side and knobs are on the right. However, you may want to use
+# the keyboard in another orienation. To avoid remapping button
+# positions in your head, just set it here.
 # Possible values are:
 #   (horizontal)
-#   - 'normal': button on the left, knobs on the right
-#   - 'upsidedown': button on the right, knobs on the left
+#   - 'normal': buttons on the left, knobs on the right
+#   - 'upsidedown': buttons on the right, knobs on the left
 #   (vertical)
-#   - 'clockwise': button on the top, knobs on the bottom
-#   - 'counterclockwise': button on the bottom, knobs on the top
+#   - 'clockwise': buttons on the top, knobs on the bottom
+#   - 'counterclockwise': buttons on the bottom, knobs on the top
 orientation: normal
 
-# There are different models of keyboard with different number
-# buttons and knobs. Write it here for proper handling.
-# Count rows and columns when keyboard is in normal orienation,
+# There are different models of keyboard with different numbers
+# of buttons and knobs. Set it here for proper handling.
+# Count rows and columns with the keyboard in normal orienation,
 # with knobs on the right side.
 rows: 3
 columns: 4
 knobs: 2
 
-# Layers are alternative key mappings which may be programmed.
-# Current layer is changed using button on the side of keyboard
+# Layers are sets of alternative key mappings.
+# The current layer is changed using a button on the side of the keyboard
 # and displayed with LEDs on top (only for the moment of changing).
 # All keyboards I saw had three layers, but I suppose other variants
 # exist.
@@ -29,20 +29,20 @@ layers:
       # Array of buttons. In horizontal orienations it's `rows` rows
       # `columns` buttons each. In vertical: `columns` rows
       # `rows` buttons each.
-      # Each entry is either a sequence of 'accords' or mouse event.
-      # Accord is a combination of key with optional modifiers,
+      # Each entry is either a sequence of 'chords' or a mouse event.
+      # A chord is a combination of one key with optional modifiers,
       # like 'b', 'ctrl-alt-a' or 'win-rctrl-backspace'. It can also
-      # be just modifiers without key: 'ctrl-alt'.
-      # You may combine several accords into sequence using comma: 'ctrl-v,ctrl-c'.
+      # be just modifiers without a key: 'ctrl-alt'.
+      # You may combine up to 5 chords into a sequence using commas: 'ctrl-v,ctrl-c'.
+      # Arbitrary scan codes (decimal) may be given like this: '<101>'.
       - ["a", "ctrl-a", "alt-shift", "alt-ctrl,ctrl-b"]
       - ["e", "f", "g", "h"]
-      # Arbitrary scan code may be given like this: "<101>", code is decimal.
       - ["<100>", "j", "k", "l"]
     knobs:
-      # Knobs are numbered from left to right in horizontal orientation
-      # and from top to bottom in vertical one.
-      # Knobs can be rotated either counter-clockwise (ccw) or clockwise (cw)
-      # and pressed.
+      # Knobs are listed from left to right if horizontal
+      # and from top to bottom if vertical.
+      # Knobs can be rotated counter-clockwise (ccw) or clockwise (cw)
+      # and pressed down.
       - ccw: 'wheelup'
         press: 'click'
         cw: 'wheeldown'
@@ -52,7 +52,7 @@ layers:
 
   - buttons:
       # Mouse events are clicks ('click/lclick', 'rclick', 'mclick') or
-      # wheel events ('wheelup', 'wheeldown') with optional single modifier,
+      # wheel events ('wheelup', 'wheeldown') with one optional modifier,
       # only 'ctrl', 'shift' and 'alt' are supported ('ctrl-wheeldown').
       # Clicks may combine several buttons, like this: 'click+rclick'.
       - ["click", "lclick", "rclick", "mclick"]
@@ -67,8 +67,8 @@ layers:
         cw: 'ctrl-right'
 
   - buttons:
-      # Multimedia commands may be emitted. They cannot be mixed with
-      # normal keyboard events and modifiers are not supported.
+      # Multimedia commands are also supported. They cannot be mixed with
+      # normal keys and modifiers.
       - ["play", "prev", "next", "mute"]
       - ["2", "3", "4", "5"]
       - ["6", "7", "8", "9"]
