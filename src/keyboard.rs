@@ -61,8 +61,8 @@ impl Keyboard {
                 if *code as u16 <= u16::from(u8::max_value()) {
                     pkt[2] = *code as u8;
                 } else {
-                    pkt[2] = (code as u16 & 0xFF) as u8;
-                    pkt[3] = (code as u16 >> 8) as u8;
+                    pkt[2] = (*code as u16 & 0xFF) as u8;
+                    pkt[3] = (*code as u16 >> 8) as u8;
                 }
                 self.send(pkt)?;
             }
