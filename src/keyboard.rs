@@ -57,7 +57,14 @@ impl Keyboard {
                 }
             }
             Macro::Media(code) => {
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x02, *code as u16, 0, 0, 0, 0, 0])?;
+                let mut pkt = [key.to_key_id()?, ((layer+1) << 4) | 0x02, 0, 0, 0, 0, 0, 0];
+                if *code <= u16::from(u8::max_value()) {
+                    pkt[2] = *code as u8;
+                } else {
+                    pkt[2] = (code & 0xFF) as u8;
+                    pkt[3] = (code >> 8) as u8;
+                }
+                self.send(pkt)?;
             }
 
             Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
@@ -85,7 +92,7 @@ impl Keyboard {
         Ok(())
     }
 
-    fn send(&mut self, pkt: [u16; 8]) -> Result<()> {
+    fn send(&mut self, pkt: [u8; 8]) -> Result<()> {
         self.buf[1..9].copy_from_slice(pkt.as_slice());
         debug!("send: {:02x?}", self.buf);
         let written = self.handle.write_interrupt(self.endpoint, &self.buf, DEFAULT_TIMEOUT)?;
