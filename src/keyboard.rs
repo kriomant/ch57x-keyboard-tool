@@ -85,7 +85,7 @@ impl Keyboard {
         Ok(())
     }
 
-    fn send(&mut self, pkt: [u8; 8]) -> Result<()> {
+    fn send(&mut self, pkt: [u16; 8]) -> Result<()> {
         self.buf[1..9].copy_from_slice(pkt.as_slice());
         debug!("send: {:02x?}", self.buf);
         let written = self.handle.write_interrupt(self.endpoint, &self.buf, DEFAULT_TIMEOUT)?;
