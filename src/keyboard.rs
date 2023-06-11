@@ -58,7 +58,7 @@ impl Keyboard {
             }
             Macro::Media(code) => {
                 let mut pkt = [key.to_key_id()?, ((layer+1) << 4) | 0x02, 0, 0, 0, 0, 0, 0];
-                if *code <= u16::from(u8::max_value()) {
+                if *code as u16 <= u16::from(u8::max_value()) {
                     pkt[2] = *code as u8;
                 } else {
                     pkt[2] = (code & 0xFF) as u8;
