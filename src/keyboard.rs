@@ -158,7 +158,7 @@ pub type Modifiers = EnumSet<Modifier>;
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumIter, EnumMessage, Display)]
-#[repr(u8)]
+#[repr(u16)]
 #[strum(serialize_all="lowercase")]
 #[strum(ascii_case_insensitive)]
 pub enum MediaCode {
