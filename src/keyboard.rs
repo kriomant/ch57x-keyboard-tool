@@ -178,7 +178,7 @@ pub enum MediaCode {
 	VolumeDown = 0xea,
 	Favorites = 0x182,
 	Calculator = 0x192,
-    ScreenLock = 0x19e,
+	ScreenLock = 0x19e,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
