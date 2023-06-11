@@ -57,7 +57,7 @@ impl Keyboard {
                 }
             }
             Macro::Media(code) => {
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x02, *code as u8, 0, 0, 0, 0, 0])?;
+                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x02, *code as u16, 0, 0, 0, 0, 0])?;
             }
 
             Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
