@@ -162,10 +162,11 @@ pub type Modifiers = EnumSet<Modifier>;
 #[strum(serialize_all="lowercase")]
 #[strum(ascii_case_insensitive)]
 pub enum MediaCode {
-	Play = 0xcd,
+	Next = 0xb5,
     #[strum(serialize="previous", serialize="prev")]
 	Previous = 0xb6,
-	Next = 0xb5,
+	Stop = 0xb7,
+	Play = 0xcd,
 	Mute = 0xe2,
 	VolumeUp = 0xe9,
 	VolumeDown = 0xea,
