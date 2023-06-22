@@ -57,14 +57,8 @@ impl Keyboard {
                 }
             }
             Macro::Media(code) => {
-                let mut pkt = [key.to_key_id()?, ((layer+1) << 4) | 0x02, 0, 0, 0, 0, 0, 0];
-                if *code as u16 <= u16::from(u8::max_value()) {
-                    pkt[2] = *code as u8;
-                } else {
-                    pkt[2] = (*code as u16 & 0xFF) as u8;
-                    pkt[3] = (*code as u16 >> 8) as u8;
-                }
-                self.send(pkt)?;
+                let [low, high] = (*code as u16).to_le_bytes();
+                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x02, low, high, 0, 0, 0, 0])?;
             }
 
             Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
