@@ -57,7 +57,8 @@ impl Keyboard {
                 }
             }
             Macro::Media(code) => {
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x02, *code as u8, 0, 0, 0, 0, 0])?;
+                let [low, high] = (*code as u16).to_le_bytes();
+                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x02, low, high, 0, 0, 0, 0])?;
             }
 
             Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
@@ -158,7 +159,7 @@ pub type Modifiers = EnumSet<Modifier>;
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumIter, EnumMessage, Display)]
-#[repr(u8)]
+#[repr(u16)]
 #[strum(serialize_all="lowercase")]
 #[strum(ascii_case_insensitive)]
 pub enum MediaCode {
@@ -170,6 +171,9 @@ pub enum MediaCode {
 	Mute = 0xe2,
 	VolumeUp = 0xe9,
 	VolumeDown = 0xea,
+	Favorites = 0x182,
+	Calculator = 0x192,
+	ScreenLock = 0x19e,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
