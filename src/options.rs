@@ -1,3 +1,5 @@
+use std::num::ParseIntError;
+
 use clap::{Parser, Subcommand};
 use crate::consts::{VENDOR_ID, PRODUCT_ID};
 use crate::parse;
@@ -7,14 +9,23 @@ pub struct Options {
     #[command(subcommand)]
     pub command: Command,
 
-    #[arg(long, default_value_t=VENDOR_ID)]
+    #[arg(long, default_value_t=VENDOR_ID, value_parser=hex_or_decimal)]
     pub vendor_id: u16,
 
-    #[arg(long, default_value_t=PRODUCT_ID)]
+    #[arg(long, default_value_t=PRODUCT_ID, value_parser=hex_or_decimal)]
     pub product_id: u16,
 
     #[arg(long, value_parser=parse_address)]
     pub address: Option<(u8, u8)>,
+}
+
+pub fn hex_or_decimal(s: &str) -> Result<u16, ParseIntError>
+{
+    if s.to_ascii_lowercase().starts_with("0x") {
+        u16::from_str_radix(&s[2..], 16)
+    } else {
+        u16::from_str_radix(s, 10)
+    }
 }
 
 fn parse_address(s: &str) -> std::result::Result<(u8, u8), nom::error::Error<String>> {
