@@ -21,11 +21,11 @@ jobs:
   upload-assets:
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
         include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
           - target: universal-apple-darwin
             os: macos-latest
 
@@ -35,5 +35,6 @@ jobs:
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: ch57x-keyboard-tool
+          target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
           include: example-mapping.yaml
