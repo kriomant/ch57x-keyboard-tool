@@ -25,6 +25,9 @@ jobs:
           - ubuntu-latest
           - macos-latest
           - windows-latest
+        include:
+          - target: universal-apple-darwin
+            os: macos-latest
 
     runs-on: ${{ matrix.os }}
     steps:
