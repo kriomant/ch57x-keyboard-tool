@@ -51,17 +51,21 @@ config has extensive documentation and examples inside.
 
 You can validate config:
 
-    ch57x-keyboard-tool validate < your-config.yaml
+    ./ch57x-keyboard-tool validate < your-config.yaml
 
 Use 'show-keys' command to list all supported modifier and key names.
 
 Finally, upload config to keyboard:
 
-    ch57x-keyboard-tool upload < your-config.yaml
+    ./ch57x-keyboard-tool upload < your-config.yaml
+
+Use 'sudo' if you get 'Access denied (insufficient permissions)':
+
+    sudo ./ch57x-keyboard-tool upload < your-config.yaml
 
 You can also change LED configuration, if you keyboard supports it:
 
-    ch57x-keyboard-tool led 1
+    ./ch57x-keyboard-tool led 1
 
 # Notes
 
