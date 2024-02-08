@@ -21,7 +21,7 @@ Utility was reported to work with:
  * 3×4 with 2 knobs (Bluetooth version)
  * 3×3 with 2 knobs
  * 3x2 with 1 knob
- * 3x1 with 1 knob
+ * 3x1 with 1 knob (but [read about it's limitations](#3x1-keys--1-knob-keyboard-limitations))
 
 All these keyboards share same vendor/product IDs: 1189:8890 (hexadecimal).
 It is possible to override used vendor/product ID, but it is usually not needed.
@@ -94,6 +94,12 @@ write in configuration is in fact scan code of keyboard key and not
 character that will be produced.
 
 So use QWERTY-letter of keyboard key you want to press.
+
+## 3x1 keys + 1 knob keyboard limitations
+
+This modification does support key modifiers (like ctrl-, alt-) for the first key in sequence only.
+
+So you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
 
 # Diagnostics
 

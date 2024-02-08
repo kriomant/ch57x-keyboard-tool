@@ -176,10 +176,19 @@ pub enum MediaCode {
 	ScreenLock = 0x19e,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Code {
     WellKnown(WellKnownCode),
     Custom(u8),
+}
+
+impl Display for Code {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Code::WellKnown(code) => write!(f, "{}", code),
+            Code::Custom(code) => write!(f, "<{}>", code),
+        }
+    }
 }
 
 impl From<WellKnownCode> for Code {

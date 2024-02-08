@@ -1,4 +1,4 @@
-use anyhow::{Result, ensure};
+use anyhow::{bail, ensure, Result};
 use serde::Deserialize;
 
 use crate::keyboard::Macro;
@@ -17,6 +17,9 @@ impl Config {
     /// Validates config and renders it to flat list of macros for buttons
     /// and knobs taking orientation into account.
     pub fn render(self) -> Result<Vec<FlatLayer>> {
+        // 3x1 keys + 1 knob keyboard has some limitations we need to check.
+        let is_limited = (self.rows == 1 || self.columns == 1) && self.knobs == 1;
+
         self.layers.into_iter().enumerate().map(|(i, layer)| {
             let (orows, ocols) = if self.orientation.is_horizontal() {
                 (self.rows, self.columns)
@@ -29,6 +32,18 @@ impl Config {
 
             let buttons = reorient_grid(self.orientation, self.rows as usize, self.columns as usize, layer.buttons);
             let knobs = reorient_row(self.orientation, layer.knobs);
+
+            if is_limited {
+                let macro_with_modifiers_beside_first_key = buttons.iter().flatten().find(|macro_| {
+                    match macro_ {
+                        Macro::Keyboard(accords) => accords.iter().skip(1).any(|accord| !accord.modifiers.is_empty()),
+                        _ => false,
+                    }
+                });
+                if let Some(macro_) = macro_with_modifiers_beside_first_key {
+                    bail!("1-row keyboard with 1 knob can handle modifiers for first key in sequence only: {}", macro_);
+                }
+            }
 
             Ok(FlatLayer { buttons, knobs })
         }).collect()
@@ -97,7 +112,9 @@ fn reorient_row<T>(orientation: Orientation, mut data: Vec<T>) -> Vec<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Config, reorient_grid, Orientation};
+    use crate::config::Layer;
+
+    use super::{reorient_grid, Config, Knob, Orientation};
 
     use std::path::PathBuf;
 
@@ -145,5 +162,29 @@ mod tests {
             ]),
             vec![5, 3, 1, 6, 4, 2],
         );
+    }
+
+    #[test]
+    #[should_panic(expected="can handle modifiers for first key in sequence only")]
+    fn test_limited_keyboard() {
+        let config = Config {
+            orientation: Orientation::Normal,
+            rows: 1,
+            columns: 3,
+            knobs: 1,
+            layers: vec![
+                Layer {
+                    buttons: vec![
+                        vec![
+                            Some("a,alt-b".parse().unwrap()),
+                            None,
+                            None
+                        ],
+                    ],
+                    knobs: vec![Knob { ccw: None, press: None, cw: None }],
+                },
+            ],
+        };
+        config.render().unwrap();
     }
 }
