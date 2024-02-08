@@ -67,6 +67,12 @@ You can also change LED configuration, if you keyboard supports it:
 
     ./ch57x-keyboard-tool led 1
 
+## Windows / PowerShell
+
+Use `Get-Content` for input redireciton:
+
+    Get-Content your-config.yaml | ./ch57x-keyboard-tool validate
+
 ## Automation
 
 The frequent question is "How to run script / emulate several keys / … on key press?"
