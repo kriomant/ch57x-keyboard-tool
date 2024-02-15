@@ -155,6 +155,12 @@ cd mouse
 python3 -m mouse
 ```
 
+## Supported Macro Keyboards
+
+* Product ID: 0x8890
+    * Vendor ID: 0x1189  (Trisat Industrial Co., Ltd.)
+    * [amazon.co.jp/dp/B0CF5L8HP3](https://www.amazon.co.jp/dp/B0CF5L8HP3)
+
 ### Photos of Supported Keyboards
 
 | 3x2 with 1 knob                       | 3x1 with 1 knob                       | 3×3 with 2 knobs                        |
