@@ -19,7 +19,7 @@ There are several modifications of such keyboards with different numbers of butt
 Both wired and wireless keyboards are supported.  
 ⚠️ However, the keyboard must be connected to the computer with the USB cable when programming it.
 
-### Supported Keyboards
+### Supported keyboards
 
 This utility was reported to work with:
 * 3×4 with 2 knobs (Bluetooth version)
@@ -143,7 +143,7 @@ So you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
 
 When reporting an issue, please include diagnostics such as the list of attached USB devices and the output of the `keyboard` and `mouse` monitoring tools.
 
-### How to Find and List Connected USB Devices
+### How to find and list connected usb devices
 
 #### macOS
 
@@ -189,13 +189,13 @@ cd mouse
 python3 -m mouse
 ```
 
-## Supported Macro Keyboards
+## Supported macro keyboards
 
 * Product ID: 0x8890
     * Vendor ID: 0x1189  (Trisat Industrial Co., Ltd.)
     * [amazon.co.jp/dp/B0CF5L8HP3](https://www.amazon.co.jp/dp/B0CF5L8HP3)
 
-### Photos of Supported Keyboards
+### Photos of supported keyboards
 
 | 3x2 with 1 knob                       | 3x1 with 1 knob                       | 3×3 with 2 knobs                        |
 | ------------------------------------- | ------------------------------------- | --------------------------------------- |
