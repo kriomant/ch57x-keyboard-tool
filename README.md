@@ -7,7 +7,7 @@
 * [What is this?](#what-is-this)
     * [Supported keyboards](#supported-keyboards)
 * [Installation](#installation)
-    * [Get prebuilt release](#get-prebuilt-release)
+    * [Prebuilt release](#prebuilt-release)
     * [Build it yourself](#build-it-yourself)
 * [Usage](#usage)
     * [Commands and options](#commands-and-options)
@@ -32,28 +32,28 @@
 
 ## What is this?
 
-This is a utility for programming small keyboards like this one:
+This keyboard configuration utility is for programming small keyboards, such as the one shown below:
 
 ![Picture of keyboard-12-2](doc/keyboard-12-2.png)
 
 Such macro keyboards are popular on AliExpress, and sellers often include software for programming, but:
-* requires Windows
-* is very ugly and inconvenient
-* can only program one key at a time
-* do not expose all keyboard features
+* It requires Windows
+* It is very ugly and inconvenient
+* It can only program one key at a time
+* It does not expose all keyboard features
 
-There are several modifications of such keyboards with different numbers of buttons and knobs (See the [photos of supported keyboards](#photos-of-supported-keyboards)) and with/without Bluetooth.
+There are several modifications of such keyboards with different numbers of buttons and knobs (see the [photos of supported keyboards](#photos-of-supported-keyboards)) and with/without Bluetooth.
 
 Both wired and wireless keyboards are supported.  
-⚠️ However, the keyboard must be connected to the computer with the USB cable when programming.
+⚠️ However, the keyboard must be connected to the computer with a USB cable when programming.
 
 ### Supported keyboards
 
-This utility was reported to work with:
+This utility has been reported to work with:
 * 3×4 with 2 knobs (Bluetooth version)
 * 3×3 with 2 knobs
 * 3x2 with 1 knob
-* 3x1 with 1 knob with [limitations](#3x1-keys--1-knob-keyboard-limitations))
+* 3x1 with 1 knob with [limitations](#3x1-keys--1-knob-keyboard-limitations)
 
 All these keyboards share the same vendor/product IDs: `1189:8890` (hexadecimal).
 It is possible to override used vendor/product ID, but it is usually unnecessary.
@@ -62,34 +62,34 @@ I haven't seen such.
 
 For more details, refer to the [Supported Macro Keyboards](#supported-macro-keyboards) section.
 
-**⚠️ Ability to override vendor/product ID doesn't mean that you can use this software for programming arbitrary keyboards!**
+**⚠️ The ability to override the vendor/product ID does not mean that you can use this utility to program arbitrary keyboards!**
 
 ## Installation
 
-There are two ways to download the keyboard utility: prebuilt release or build it yourself.
+There are two ways to download the keyboard utility: getting a prebuilt release or building it yourself.
 
-### Get the prebuilt release
+### Prebuilt release
 
-Simply download the [latest release from GitHub](https://github.com/kriomant/ch57x-keyboard-tool/releases)
+Simply download the [latest release from GitHub](https://github.com/kriomant/ch57x-keyboard-tool/releases).
 
 ### Build it yourself
 
-1. Install the *cargo* utility using [rustup](https://rustup.rs/)
+1. Install the *cargo* utility using [rustup](https://rustup.rs/):
     * Brew: `brew install rustup-init && rustup-init`
     * Linux: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-    * Windows: download and run [rustup-init.exe](https://win.rustup.rs/)
-1. Execute `cargo install ch57x-keyboard-tool`.
+    * Windows: Download and run [rustup-init.exe](https://win.rustup.rs/)
+2. Execute `cargo install ch57x-keyboard-tool`.
 
 ## Usage
 
 **Note**: Windows users need to install [USBDK](https://github.com/daynix/UsbDk/releases) first.
 
-1. Connect the keyboard to the computer with the USB cable.
-1. Create a configuration file based on the provided [example-mapping.yaml](example-mapping.yaml).
+1. Connect the keyboard to the computer with a USB cable.
+2. Create a configuration file based on the provided [example-mapping.yaml](example-mapping.yaml).
     * The example config file has extensive documentation inside.
-1. Validate the configuration file.
-1. Upload the configuration to the keyboard.
-1. Done! 🎉
+3. Validate the configuration file.
+4. Upload the configuration to the keyboard.
+5. Done! 🎉
 
 ### Commands and options
 
@@ -97,19 +97,23 @@ Simply download the [latest release from GitHub](https://github.com/kriomant/ch5
 ch57x-keyboard-tool [OPTIONS] <COMMAND>
 ```
 
+Commands and their descriptions:
+
 | Command                | Description                                               |
 | ---------------------- | --------------------------------------------------------- |
 | `show-keys`            | Display a list of all supported keys and modifiers        |
-| `validate`             | Validate key mappings config on stdin                     |
-| `upload`               | Upload key mappings from stdin to device                  |
+| `validate`             | Validate key mappings config from stdin                   |
+| `upload`               | Upload key mappings from stdin to the device              |
 | `led`                  | Select LED backlight mode                                 |
 | `help`, `-h`, `--help` | Print this message or the help of the given subcommand(s) |
 
-| Option                      | Description                | Notes            |
-| --------------------------- | -------------------------- | ---------------- |
-| `--vendor-id <VENDOR_ID>`   | Vendor ID of the keyboard  | Default: `4489`  |
-| `--product-id <PRODUCT_ID>` | Product ID of the keyboard | Default: `34960` |
-| `--address <ADDRESS>`       | Address of the keyboard    |                  |
+Options and their descriptions:
+
+| Option                      | Description                 | Notes            |
+| --------------------------- | --------------------------- | ---------------- |
+| `--vendor-id <VENDOR_ID>`   | Vendor ID of the keyboard   | Default: `4489`  |
+| `--product-id <PRODUCT_ID>` | Product ID of the keyboard  | Default: `34960` |
+| `--address <ADDRESS>`       | Address of the keyboard     |                  |
 
 ### Validate the config file
 
@@ -151,47 +155,47 @@ Get-Content your-config.yaml | ./ch57x-keyboard-tool validate
 
 ## Automation
 
-A common question/requests are about automation such as "How to run a script?", "emulate several keys", or "how to trigger an action with a key press?"
+A common question/request is about automation, such as "How to run a script?", "emulate several keys", or "how to trigger an action with a key press?"
 
-This tool does just one job: **writes your key bindings into a keyboard** and then exists.  
+This tool does just one job: **writes your key bindings into the keyboard** and then exits.  
 It does not listen for key presses.
-Automation based on key presses is not in the scope of this utility tool.
+Automation based on key presses is not within the scope of this utility tool.
 
-If you want any automation, use third-party automation tools like [BetterTouchTool](https://folivora.ai/) or 
+If you seek any automation, use third-party automation tools like [BetterTouchTool](https://folivora.ai/).
 
-1. Choose a chord you do not usually use (like `alt-ctrl-shift-1`)
-1. Assign the chord to a key
-2. Use a third-party automation tool to listen for this chord and have it perform the desired action
-3. Done! 🎉
+1. Choose a chord you do not usually use (like `alt-ctrl-shift-1`).
+2. Assign the chord to a key.
+3. Use a third-party automation tool to listen for this chord and have it perform the desired action.
+4. Done! 🎉
 
 ## Notes
 
 ### Number of layers
 
 All keyboards I have seen have three layers (three key configurations which may be switched).
-But, if your keyboard does not support layer switching, just keep a single layer in the configuration file.
+However, if your keyboard does not support layer switching, just keep a single layer in the configuration file.
 
 ### Custom keyboard layouts
 
 If you use a custom keyboard layout, like [Dvorak](https://en.wikipedia.org/wiki/Dvorak_keyboard_layout), you will need to write the keyboard key's [scancode](https://en.wikipedia.org/wiki/Scancode) in the configuration file (not the character that is produced).
 
-So use the QWERTY letter of the keyboard key you want to press.
+So, use the QWERTY letter of the keyboard key you want to press.
 
 ### 3x1 keys + 1 knob keyboard limitations
 
 This modification does support key modifiers (like `ctrl-`, `alt-`, and `cmd-`) for the first key in sequence only.
 
-So you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
+So, you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
 
 ### macOS vs Windows keyboard keys
 
-Friendly reminder that some keys have different names on macOS and Windows.  
+A friendly reminder that some keys have different names on macOS and Windows.  
 Make sure to use the correct key names in your configuration file.
 
 | Key Name          | macOS Key | Windows Key |
 | ----------------- | --------- | ----------- |
 | Command / Windows | `cmd`     | `win`       |
-| Option / Alt      | `cmd`     | `alt`       |
+| Option / Alt      | `opt`     | `alt`       |
 
 ## Diagnostics
 
@@ -225,7 +229,7 @@ Get-PnpDevice | Where-Object { $_.Class -eq 'USB' } | Format-Table Name, DeviceI
 
 ### Monitoring generated keyboard and mouse events
 
-The `keyboard` and `mouse` Python modules is the simplest and cross-platform way to monitor keyboard and mouse events.
+The simplest and cross-platform way to monitor keyboard and mouse events is using the `keyboard` and `mouse` Python modules.
 
 Monitoring keyboard:
 
