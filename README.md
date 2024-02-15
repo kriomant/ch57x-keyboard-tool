@@ -4,7 +4,7 @@
 
 This is an utility for programming small keyboards like this one:
 
-![](doc/keyboard-12-2.png)
+![Picture of keyboard-12-2](doc/keyboard-12-2.png)
 
 Such keyboards are popular on AliExpress and seller usually sends software
 for programming, but it:
@@ -140,12 +140,13 @@ Monitoring keyboard:
 
 Monitoring mouse:
 
-    # Latest published 'mouse' module doesn't support MacOS, so use latest version from Git:
+    ## Latest published 'mouse' module doesn't support MacOS, so use latest version from Git:
     git clone https://github.com/boppreh/mouse
     cd mouse
     python3 -m mouse
 
-### Photos
+### Photos of Supported Keyboards
 
-![](doc/keyboard-6-1.png)
-![](doc/keyboard-3-1.jpg)
+| 3x2 with 1 knob                       | 3x1 with 1 knob                       | 3×3 with 2 knobs                        |
+| ------------------------------------- | ------------------------------------- | --------------------------------------- |
+| ![keyboard-6-1](doc/keyboard-6-1.png) | ![keyboard-3-1](doc/keyboard-3-1.jpg) | ![keyboard-12-2](doc/keyboard-12-2.png) |
