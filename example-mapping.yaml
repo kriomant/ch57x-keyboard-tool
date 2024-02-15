@@ -41,12 +41,12 @@ layers:
       # Knobs are listed from top to bottom if vertical.
       # Knobs can be rotated counter-clockwise (ccw) or clockwise (cw)
       # and pressed down.
-      - ccw: 'wheelup'
-        press: 'click'
-        cw: 'wheeldown'
-      - ccw: 'shift-wheelup'
-        press: 'shift-click'
-        cw: 'shift-wheeldown'
+      - ccw: "wheelup"
+        press: "click"
+        cw: "wheeldown"
+      - ccw: "shift-wheelup"
+        press: "shift-click"
+        cw: "shift-wheeldown"
 
   - buttons:
       # Mouse events are clicks ('click/lclick', 'rclick', 'mclick') or
@@ -57,12 +57,12 @@ layers:
       - ["click+rclick", "wheeldown", "shift-wheelup", "ctrl-wheelup"]
       - ["alt-wheelup", "ctrl-click", "wheelup", "wheelup"]
     knobs:
-      - ccw: 'left'
-        press: 'enter'
-        cw: 'right'
-      - ccw: 'ctrl-left'
-        press: 'ctrl-enter'
-        cw: 'ctrl-right'
+      - ccw: "left"
+        press: "enter"
+        cw: "right"
+      - ccw: "ctrl-left"
+        press: "ctrl-enter"
+        cw: "ctrl-right"
 
   - buttons:
       # Multimedia commands are supported but
@@ -71,9 +71,9 @@ layers:
       - ["2", "3", "4", "5"]
       - ["6", "7", "8", "9"]
     knobs:
-      - ccw: 'volumedown'
-        press: 'mute'
-        cw: 'volumeup'
-      - ccw: 'd'
-        press: 'e'
-        cw: 'f'
+      - ccw: "volumedown"
+        press: "mute"
+        cw: "volumeup"
+      - ccw: "d"
+        press: "e"
+        cw: "f"
