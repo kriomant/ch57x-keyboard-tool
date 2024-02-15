@@ -2,6 +2,34 @@
 
 ![Last Commit Shields.io](https://img.shields.io/github/last-commit/kriomant/ch57x-keyboard-tool?style=for-the-badge) ![Release Workflow Badge](https://github.com/kriomant/ch57x-keyboard-tool/actions/workflows/release.yml/badge.svg)
 
+## Table of Contents <!-- omit in toc -->
+
+* [What is this?](#what-is-this)
+    * [Supported keyboards](#supported-keyboards)
+* [Installation](#installation)
+    * [Get prebuilt release](#get-prebuilt-release)
+    * [Build it yourself](#build-it-yourself)
+* [Usage](#usage)
+    * [Commands and options](#commands-and-options)
+    * [Validate the config file](#validate-the-config-file)
+    * [Upload the config to the keyboard](#upload-the-config-to-the-keyboard)
+    * [Change LED configuration](#change-led-configuration)
+    * [Windows / PowerShell](#windows--powershell)
+* [Automation](#automation)
+* [Notes](#notes)
+    * [Number of layers](#number-of-layers)
+    * [Custom keyboard layouts](#custom-keyboard-layouts)
+    * [3x1 keys + 1 knob keyboard limitations](#3x1-keys--1-knob-keyboard-limitations)
+    * [macOS vs Windows keyboard keys](#macos-vs-windows-keyboard-keys)
+* [Diagnostics](#diagnostics)
+    * [How to find and list connected USB devices](#how-to-find-and-list-connected-usb-devices)
+        * [macOS](#macos)
+        * [Linux](#linux)
+        * [Windows](#windows)
+    * [Monitoring generated keyboard and mouse events](#monitoring-generated-keyboard-and-mouse-events)
+* [Supported macro keyboards](#supported-macro-keyboards)
+    * [Photos of supported keyboards](#photos-of-supported-keyboards)
+
 ## What is this?
 
 This is a utility for programming small keyboards like this one:
