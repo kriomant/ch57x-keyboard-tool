@@ -1,5 +1,7 @@
 # ch57x-keyboard-tool Macro Keyboard Configuration Utility
 
+![Last Commit Shields.io](https://img.shields.io/github/last-commit/kriomant/ch57x-keyboard-tool?style=for-the-badge) ![Release Workflow Badge](https://github.com/kriomant/ch57x-keyboard-tool/actions/workflows/release.yml/badge.svg)
+
 ## What is this?
 
 This is an utility for programming small keyboards like this one:
