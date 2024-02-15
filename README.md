@@ -36,16 +36,21 @@ Refer to the [Supported Macro Keyboards](#supported-macro-keyboards) section for
 
 **⚠️ Ability to override vendor/product ID doesn't mean that you can use this software for programming arbitrary keyboards!**
 
-## How to get it?
+## Installation
+
+There are two ways to get this software: prebuilt release or build it yourself.
 
 ### Get prebuilt release
 
-Download latest release from [GitHub releases](https://github.com/kriomant/ch57x-keyboard-tool/releases)
+Download the latest release from [GitHub releases](https://github.com/kriomant/ch57x-keyboard-tool/releases)
 
 ### Build it yourself
 
-Install *cargo* utility using [rustup](https://rustup.rs/), then execute
-`cargo install ch57x-keyboard-tool`.
+1. Install the *cargo* utility using [rustup](https://rustup.rs/)
+    * Brew: `brew install rustup-init && rustup-init`
+    * Linux: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+    * Windows: download and run [rustup-init.exe](https://win.rustup.rs/)
+1. Execute `cargo install ch57x-keyboard-tool`.
 
 ## How to use?
 
