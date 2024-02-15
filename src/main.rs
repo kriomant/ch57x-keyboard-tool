@@ -119,25 +119,31 @@ fn open_keyboard(options: &Options) -> Result<Keyboard> {
     let intf = conf_desc
         .interfaces()
         .find(|intf| intf.number() == 1)
-        .ok_or_else(|| anyhow!("interface #1 not found"))?;
+        .ok_or_else(|| {
+            anyhow!("interface #1 not found, interface numbers:\n{:#?}",
+                conf_desc.interfaces().map(|i| i.number()).format(", "))
+        })?;
     let intf_desc = intf
         .descriptors()
         .exactly_one()
-        .map_err(|_| anyhow!("only one interface descriptor is expected"))?;
+        .map_err(|_| {
+            anyhow!("only one interface descriptor is expected, got:\n{:#?}",
+                intf.descriptors().format("\n"))
+        })?;
     ensure!(
         intf_desc.class_code() == 0x03
             && intf_desc.sub_class_code() == 0x00
             && intf_desc.protocol_code() == 0x00,
-        "unexpected interface parameters"
+        "unexpected interface parameters: {:#?}", intf_desc
     );
     let endpt_desc = intf_desc
         .endpoint_descriptors()
+        .filter(|ep| ep.transfer_type() == TransferType::Interrupt)
         .exactly_one()
-        .map_err(|_| anyhow!("single endpoint is expected"))?;
-    ensure!(
-        endpt_desc.transfer_type() == TransferType::Interrupt,
-        "unexpected endpoint transfer type"
-    );
+        .map_err(|_| {
+            anyhow!("single interrupt endpoint is expected, got:\n{:#?}",
+                intf_desc.endpoint_descriptors().format("\n"))
+        })?;
 
     // Open device.
     let mut handle = device.open().context("open USB device")?;
