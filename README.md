@@ -105,16 +105,19 @@ Use `Get-Content` for input redirection:
 Get-Content your-config.yaml | ./ch57x-keyboard-tool validate
 ```
 
-### Automation
+## Automation
 
-The frequent question is "How to run script / emulate several keys / … on key press?"
-This tool does just one job — writes your key bindings into keyboard and then exists, it does not
-listen for pressed key. If you want any automation, use third-party automation tools, like BetterTouchTool
-or dozens of other.
+A common question/requests are about automation such as "How to run a script?", "emulate several keys", or "how to trigger an action with a key press?"
 
-1. Choose some chord you don't usually use, like 'alt-ctrl-shift-1' and assign to some key
-2. Use third-party tool to listen for this chord and perform action you want.
-3. Done!
+This tool does just one job: **writes your key bindings into a keyboard** and then exists.  
+It does not listen for key presses.
+Automation based on key presses is not in the scope of this utility tool.
+
+If you want any automation, use third-party automation tools, like [BetterTouchTool](https://folivora.ai/).
+
+1. Choose some chord you do not usually use, like `alt-ctrl-shift-1` and assign it to a key
+2. Use a third-party tool to listen for this chord and perform the desired action
+3. Done! 🎉
 
 ## Notes
 
