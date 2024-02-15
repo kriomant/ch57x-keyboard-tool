@@ -53,13 +53,17 @@ config has extensive documentation and examples inside.
 
 You can validate config:
 
-    ./ch57x-keyboard-tool validate < your-config.yaml
+```shell
+./ch57x-keyboard-tool validate < your-config.yaml
+```
 
 Use 'show-keys' command to list all supported modifier and key names.
 
 Finally, upload config to keyboard:
 
-    ./ch57x-keyboard-tool upload < your-config.yaml
+```shell
+./ch57x-keyboard-tool upload < your-config.yaml
+```
 
 Use 'sudo' if you get 'Access denied (insufficient permissions)':
 
@@ -67,7 +71,9 @@ Use 'sudo' if you get 'Access denied (insufficient permissions)':
 
 You can also change LED configuration, if you keyboard supports it:
 
-    ./ch57x-keyboard-tool led 1
+```shell
+./ch57x-keyboard-tool led 1
+```
 
 ### Windows / PowerShell
 
@@ -135,15 +141,19 @@ Most simple (and cross-platform) way I've found is using `keyboard` and `mouse` 
 
 Monitoring keyboard:
 
-    pip3 install keyboard
-    sudo python3 -m keyboard
+```shell
+pip3 install keyboard
+sudo python3 -m keyboard
+```
 
 Monitoring mouse:
+* The latest published 'mouse' module doesn't support macOS, so use the latest version from GitHub
 
-    ## Latest published 'mouse' module doesn't support MacOS, so use latest version from Git:
-    git clone https://github.com/boppreh/mouse
-    cd mouse
-    python3 -m mouse
+```shell
+git clone https://github.com/boppreh/mouse
+cd mouse
+python3 -m mouse
+```
 
 ### Photos of Supported Keyboards
 
