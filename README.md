@@ -119,21 +119,31 @@ So you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
 
 If you have any troubles using this software, please provide diagnostics.
 
-### Getting list of attached USB devices
+### How to Find and List Connected USB Devices
 
-#### MacOS
+#### macOS
 
-
-    ioreg -w0 -l -p IOUSB
+```shell
+system_profiler SPUSBDataType
+```
 
 or
 
-    system_profiler SPUSBDataType
+```shell
+ioreg -w0 -l -p IOUSB
+```
 
 #### Linux
 
+```shell
+lsusb -v
+```
 
-    lsusb -v
+#### Windows
+
+```powershell
+Get-PnpDevice | Where-Object { $_.Class -eq 'USB' } | Format-Table Name, DeviceID, Manufacturer, Status, Description -AutoSize
+```
 
 ### Monitoring generated keyboard and mouse events
 
