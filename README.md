@@ -58,18 +58,31 @@ Download the latest release from [GitHub releases](https://github.com/kriomant/c
 
 1. Connect the keyboard to the computer with the USB cable.
 1. Create a configuration file based on the provided [example-mapping.yaml](example-mapping.yaml).
-    * Example config has extensive documentation and examples inside.
+    * The example config file has extensive documentation inside.
 1. Validate the configuration file.
 1. Upload the configuration to the keyboard.
 1. Done! 🎉
 
-### List all supported modifiers and key names
-
-Use 'show-keys' command to list all supported modifiers and key names.
+### Commands and options
 
 ```shell
-./ch57x-keyboard-tool show-keys
+ch57x-keyboard-tool [OPTIONS] <COMMAND>
 ```
+
+| Command                | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `show-keys`            | Display a list of all supported keys and modifiers        |
+| `validate`             | Validate key mappings config on stdin                     |
+| `upload`               | Upload key mappings from stdin to device                  |
+| `led`                  | Select LED backlight mode                                 |
+| `help`, `-h`, `--help` | Print this message or the help of the given subcommand(s) |
+
+| Option                      | Description                | Notes            |
+| --------------------------- | -------------------------- | ---------------- |
+| `--vendor-id <VENDOR_ID>`   | Vendor ID of the keyboard  | Default: `4489`  |
+| `--product-id <PRODUCT_ID>` | Product ID of the keyboard | Default: `34960` |
+| `--address <ADDRESS>`       | Address of the keyboard    |                  |
+
 
 ### Validate the config file
 
