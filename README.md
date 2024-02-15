@@ -56,9 +56,8 @@ This utility has been reported to work with:
 * 3x1 with 1 knob with [limitations](#3x1-keys--1-knob-keyboard-limitations)
 
 All these keyboards share the same vendor/product IDs: `1189:8890` (hexadecimal).
-It is possible to override used vendor/product ID, but it is usually unnecessary.
-Use it only if you find the same-looking keyboard with other vendor/product ID,
-I haven't seen such.
+It is possible to override the used vendor/product ID, but it is usually unnecessary.
+Use this utility on similar-looking keyboard with a different vendor/product ID.
 
 For more details, refer to the [Supported Macro Keyboards](#supported-macro-keyboards) section.
 
