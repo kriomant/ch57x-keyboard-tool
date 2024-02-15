@@ -136,14 +136,26 @@ fn open_keyboard(options: &Options) -> Result<Keyboard> {
             && intf_desc.protocol_code() == 0x00,
         "unexpected interface parameters: {:#?}", intf_desc
     );
-    let endpt_desc = intf_desc
+
+    let mut endpt_descs = intf_desc
         .endpoint_descriptors()
-        .filter(|ep| ep.transfer_type() == TransferType::Interrupt)
-        .exactly_one()
-        .map_err(|_| {
-            anyhow!("single interrupt endpoint is expected, got:\n{:#?}",
-                intf_desc.endpoint_descriptors().format("\n"))
-        })?;
+        .filter(|ep| ep.transfer_type() == TransferType::Interrupt);
+    let endpt_desc = if let Some(endpoint_address) = options.devel_options.endpoint_address {
+        endpt_descs
+            .find(|d| d.address() == endpoint_address)
+            .ok_or_else(|| anyhow!("endpoint with address {} not found", endpoint_address))?
+    } else {
+        endpt_descs
+            .exactly_one()
+            .map_err(|_| {
+                anyhow!(indoc!(
+                    "single interrupt endpoint is expected, got:
+                    {:#?}
+
+                    You may try to choose one using --endpoint-address"
+                ), intf_desc.endpoint_descriptors().format("\n"))
+            })?
+    };
 
     // Open device.
     let mut handle = device.open().context("open USB device")?;
@@ -168,7 +180,7 @@ fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor)> {
             desc.vendor_id(),
             desc.product_id()
         );
-        if desc.vendor_id() == opts.vendor_id && desc.product_id() == opts.product_id {
+        if desc.vendor_id() == opts.devel_options.vendor_id && desc.product_id() == opts.devel_options.product_id {
             found.push((device, desc));
             continue
         }
@@ -201,7 +213,7 @@ fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor)> {
                 let serial = handle.read_serial_number_string(*lang, &desc, DEFAULT_TIMEOUT)
                     .context("read serial")?;*/
                 let address = (device.bus_number(), device.address());
-                if opts.address.as_ref() == Some(&address) {
+                if opts.devel_options.address.as_ref() == Some(&address) {
                     return Ok((device, desc))
                 }
 

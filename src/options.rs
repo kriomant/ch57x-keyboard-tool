@@ -1,6 +1,6 @@
 use std::num::ParseIntError;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use crate::consts::{VENDOR_ID, PRODUCT_ID};
 use crate::parse;
 
@@ -9,6 +9,13 @@ pub struct Options {
     #[command(subcommand)]
     pub command: Command,
 
+    #[clap(flatten)]
+    pub devel_options: DevelOptions,
+}
+
+#[derive(Args)]
+#[clap(next_help_heading = "Internal options (use with caution)")]
+pub struct DevelOptions {
     #[arg(long, default_value_t=VENDOR_ID, value_parser=hex_or_decimal)]
     pub vendor_id: u16,
 
@@ -17,6 +24,9 @@ pub struct Options {
 
     #[arg(long, value_parser=parse_address)]
     pub address: Option<(u8, u8)>,
+
+    #[arg(long)]
+    pub endpoint_address: Option<u8>,
 }
 
 pub fn hex_or_decimal(s: &str) -> Result<u16, ParseIntError>
