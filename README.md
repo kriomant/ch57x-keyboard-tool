@@ -4,36 +4,37 @@
 
 ## What is this?
 
-This is an utility for programming small keyboards like this one:
+This is a utility for programming small keyboards like this one:
 
 ![Picture of keyboard-12-2](doc/keyboard-12-2.png)
 
-Such keyboards are popular on AliExpress and seller usually sends software
-for programming, but it:
-* requires Windows,
-* is very ugly and inconvenient,
+Such macro keyboards are popular on AliExpress and sellers usually send software for programming, but it:
+* requires Windows
+* is very ugly and inconvenient
 * can only program one key at a time
 * don't expose all keyboard features
 
-There are several modifications of such keyboards with different number of
-buttons and knobs ([see some photos](#photos)) and with/without Bluetooth.
+There are several modifications of such keyboards with different numbers of buttons and knobs (See the [photos of supported keyboards](#photos-of-supported-keyboards)) and with/without Bluetooth.
 
-Both wired and wireless keyboards are supported, however programming
-is possible though wire only in both cases!
+Both wired and wireless keyboards are supported.  
+⚠️ However, the keyboard must be connected to the computer with the USB cable when programming it.
 
-Utility was reported to work with:
+### Supported Keyboards
+
+This utility was reported to work with:
 * 3×4 with 2 knobs (Bluetooth version)
 * 3×3 with 2 knobs
 * 3x2 with 1 knob
 * 3x1 with 1 knob (but [read about it's limitations](#3x1-keys--1-knob-keyboard-limitations))
 
-All these keyboards share same vendor/product IDs: 1189:8890 (hexadecimal).
+All these keyboards share the same vendor/product IDs: `1189:8890` (hexadecimal).
 It is possible to override used vendor/product ID, but it is usually not needed.
 Use it only if you find same-looking keyboard with other vendor/product ID,
 I haven't seen such.
 
-**Ability to override vendor/product ID doesn't mean that you can use
-this software for programming arbitrary keyboards!**
+Refer to the [Supported Macro Keyboards](#supported-macro-keyboards) section for more details.
+
+**⚠️ Ability to override vendor/product ID doesn't mean that you can use this software for programming arbitrary keyboards!**
 
 ## How to get it?
 
