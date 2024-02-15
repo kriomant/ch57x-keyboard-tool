@@ -89,7 +89,7 @@ Use 'sudo' if you get 'Access denied (insufficient permissions)':
 sudo ./ch57x-keyboard-tool upload < your-config.yaml
 ```
 
-### Change led configuration
+### Change LED configuration
 
 If your keyboard supports it, you can change the LED configuration:
 
@@ -146,7 +146,7 @@ So you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
 
 When reporting an issue, please include diagnostics such as the list of attached USB devices and the output of the `keyboard` and `mouse` monitoring tools.
 
-### How to find and list connected usb devices
+### How to find and list connected USB devices
 
 #### macOS
 
