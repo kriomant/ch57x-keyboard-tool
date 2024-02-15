@@ -36,16 +36,16 @@ This is a utility for programming small keyboards like this one:
 
 ![Picture of keyboard-12-2](doc/keyboard-12-2.png)
 
-Such macro keyboards are popular on AliExpress and sellers usually send software for programming, but it:
+Such macro keyboards are popular on AliExpress, and sellers often include software for programming, but:
 * requires Windows
 * is very ugly and inconvenient
 * can only program one key at a time
-* don't expose all keyboard features
+* do not expose all keyboard features
 
 There are several modifications of such keyboards with different numbers of buttons and knobs (See the [photos of supported keyboards](#photos-of-supported-keyboards)) and with/without Bluetooth.
 
 Both wired and wireless keyboards are supported.  
-⚠️ However, the keyboard must be connected to the computer with the USB cable when programming it.
+⚠️ However, the keyboard must be connected to the computer with the USB cable when programming.
 
 ### Supported keyboards
 
@@ -53,24 +53,24 @@ This utility was reported to work with:
 * 3×4 with 2 knobs (Bluetooth version)
 * 3×3 with 2 knobs
 * 3x2 with 1 knob
-* 3x1 with 1 knob (but [read about it's limitations](#3x1-keys--1-knob-keyboard-limitations))
+* 3x1 with 1 knob with [limitations](#3x1-keys--1-knob-keyboard-limitations))
 
 All these keyboards share the same vendor/product IDs: `1189:8890` (hexadecimal).
-It is possible to override used vendor/product ID, but it is usually not needed.
-Use it only if you find same-looking keyboard with other vendor/product ID,
+It is possible to override used vendor/product ID, but it is usually unnecessary.
+Use it only if you find the same-looking keyboard with other vendor/product ID,
 I haven't seen such.
 
-Refer to the [Supported Macro Keyboards](#supported-macro-keyboards) section for more details.
+For more details, refer to the [Supported Macro Keyboards](#supported-macro-keyboards) section.
 
 **⚠️ Ability to override vendor/product ID doesn't mean that you can use this software for programming arbitrary keyboards!**
 
 ## Installation
 
-There are two ways to get this software: prebuilt release or build it yourself.
+There are two ways to download the keyboard utility: prebuilt release or build it yourself.
 
-### Get prebuilt release
+### Get the prebuilt release
 
-Download the latest release from [GitHub releases](https://github.com/kriomant/ch57x-keyboard-tool/releases)
+Simply download the [latest release from GitHub](https://github.com/kriomant/ch57x-keyboard-tool/releases)
 
 ### Build it yourself
 
@@ -134,6 +134,10 @@ sudo ./ch57x-keyboard-tool upload < your-config.yaml
 If your keyboard supports it, you can change the LED configuration:
 
 ```shell
+# Turn off the LED
+./ch57x-keyboard-tool led 0
+
+# Set the LED to the first mode (likely "Steady on")
 ./ch57x-keyboard-tool led 1
 ```
 
@@ -153,23 +157,23 @@ This tool does just one job: **writes your key bindings into a keyboard** and th
 It does not listen for key presses.
 Automation based on key presses is not in the scope of this utility tool.
 
-If you want any automation, use third-party automation tools, like [BetterTouchTool](https://folivora.ai/).
+If you want any automation, use third-party automation tools like [BetterTouchTool](https://folivora.ai/) or 
 
-1. Choose some chord you do not usually use, like `alt-ctrl-shift-1` and assign it to a key
-2. Use a third-party tool to listen for this chord and perform the desired action
+1. Choose a chord you do not usually use (like `alt-ctrl-shift-1`)
+1. Assign the chord to a key
+2. Use a third-party automation tool to listen for this chord and have it perform the desired action
 3. Done! 🎉
 
 ## Notes
 
 ### Number of layers
 
-All keyboards I have seen have three layers (three key configurations which may be switched).  
-However, I have been told there are keyboards without layer switch.
-If so, just keep a single layer in the configuration file and you are done.
+All keyboards I have seen have three layers (three key configurations which may be switched).
+But, if your keyboard does not support layer switching, just keep a single layer in the configuration file.
 
 ### Custom keyboard layouts
 
-If you use a custom keyboard layout, like Dvorak, note that you will need to write the keyboard key's scan code in the configuration file (not the character that is produced).
+If you use a custom keyboard layout, like [Dvorak](https://en.wikipedia.org/wiki/Dvorak_keyboard_layout), you will need to write the keyboard key's [scancode](https://en.wikipedia.org/wiki/Scancode) in the configuration file (not the character that is produced).
 
 So use the QWERTY letter of the keyboard key you want to press.
 
@@ -221,7 +225,7 @@ Get-PnpDevice | Where-Object { $_.Class -eq 'USB' } | Format-Table Name, DeviceI
 
 ### Monitoring generated keyboard and mouse events
 
-The most simple (and cross-platform) way I have found is using `keyboard` and `mouse` Python modules.
+The `keyboard` and `mouse` Python modules is the simplest and cross-platform way to monitor keyboard and mouse events.
 
 Monitoring keyboard:
 
