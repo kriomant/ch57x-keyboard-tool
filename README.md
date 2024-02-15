@@ -1,4 +1,6 @@
-# What is this?
+# ch57x-keyboard-tool Macro Keyboard Configuration Utility
+
+## What is this?
 
 This is an utility for programming small keyboards like this one:
 
@@ -6,10 +8,10 @@ This is an utility for programming small keyboards like this one:
 
 Such keyboards are popular on AliExpress and seller usually sends software
 for programming, but it:
- * requires Windows,
- * is very ugly and inconvenient,
- * can only program one key at a time
- * don't expose all keyboard features
+* requires Windows,
+* is very ugly and inconvenient,
+* can only program one key at a time
+* don't expose all keyboard features
 
 There are several modifications of such keyboards with different number of
 buttons and knobs ([see some photos](#photos)) and with/without Bluetooth.
@@ -18,10 +20,10 @@ Both wired and wireless keyboards are supported, however programming
 is possible though wire only in both cases!
 
 Utility was reported to work with:
- * 3×4 with 2 knobs (Bluetooth version)
- * 3×3 with 2 knobs
- * 3x2 with 1 knob
- * 3x1 with 1 knob (but [read about it's limitations](#3x1-keys--1-knob-keyboard-limitations))
+* 3×4 with 2 knobs (Bluetooth version)
+* 3×3 with 2 knobs
+* 3x2 with 1 knob
+* 3x1 with 1 knob (but [read about it's limitations](#3x1-keys--1-knob-keyboard-limitations))
 
 All these keyboards share same vendor/product IDs: 1189:8890 (hexadecimal).
 It is possible to override used vendor/product ID, but it is usually not needed.
@@ -31,18 +33,18 @@ I haven't seen such.
 **Ability to override vendor/product ID doesn't mean that you can use
 this software for programming arbitrary keyboards!**
 
-# How to get it?
+## How to get it?
 
-## Get prebuilt release
+### Get prebuilt release
 
 Download latest release from [GitHub releases](https://github.com/kriomant/ch57x-keyboard-tool/releases)
 
-## Build it yourself
+### Build it yourself
 
 Install *cargo* utility using [rustup](https://rustup.rs/), then execute
 `cargo install ch57x-keyboard-tool`.
 
-# How to use?
+## How to use?
 
 **Note**: on Windows you need to install [USBDK](https://github.com/daynix/UsbDk/releases) first.
 
@@ -67,13 +69,13 @@ You can also change LED configuration, if you keyboard supports it:
 
     ./ch57x-keyboard-tool led 1
 
-## Windows / PowerShell
+### Windows / PowerShell
 
 Use `Get-Content` for input redireciton:
 
     Get-Content your-config.yaml | ./ch57x-keyboard-tool validate
 
-## Automation
+### Automation
 
 The frequent question is "How to run script / emulate several keys / … on key press?"
 This tool does just one job — writes your key bindings into keyboard and then exists, it does not
@@ -84,16 +86,16 @@ or dozens of other.
 2. Use third-party tool to listen for this chord and perform action you want.
 3. Done!
 
-# Notes
+## Notes
 
-## Number of layers
+### Number of layers
 
 All keyboards I've seen have three layer (three keys configuration which
 may be switched). However I've been told there are keyboards without
 layer switch. If so, just keep single layer in configuration file and you
 are done.
 
-## Custom keyboard layouts
+### Custom keyboard layouts
 
 If you use custom keyboard layout, like Dvorak, note that what you
 write in configuration is in fact scan code of keyboard key and not
@@ -101,19 +103,19 @@ character that will be produced.
 
 So use QWERTY-letter of keyboard key you want to press.
 
-## 3x1 keys + 1 knob keyboard limitations
+### 3x1 keys + 1 knob keyboard limitations
 
 This modification does support key modifiers (like ctrl-, alt-) for the first key in sequence only.
 
 So you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
 
-# Diagnostics
+## Diagnostics
 
 If you have any troubles using this software, please provide diagnostics.
 
-## Getting list of attached USB devices
+### Getting list of attached USB devices
 
-### MacOS
+#### MacOS
 
 
     ioreg -w0 -l -p IOUSB
@@ -122,12 +124,12 @@ or
 
     system_profiler SPUSBDataType
 
-### Linux
+#### Linux
 
 
     lsusb -v
 
-## Monitoring generated keyboard and mouse events
+### Monitoring generated keyboard and mouse events
 
 Most simple (and cross-platform) way I've found is using `keyboard` and `mouse` Python modules.
 
@@ -143,7 +145,7 @@ Monitoring mouse:
     cd mouse
     python3 -m mouse
 
-## Photos
+### Photos
 
 ![](doc/keyboard-6-1.png)
 ![](doc/keyboard-3-1.jpg)
