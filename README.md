@@ -83,7 +83,6 @@ ch57x-keyboard-tool [OPTIONS] <COMMAND>
 | `--product-id <PRODUCT_ID>` | Product ID of the keyboard | Default: `34960` |
 | `--address <ADDRESS>`       | Address of the keyboard    |                  |
 
-
 ### Validate the config file
 
 ```shell
@@ -136,22 +135,19 @@ If you want any automation, use third-party automation tools, like [BetterTouchT
 
 ### Number of layers
 
-All keyboards I've seen have three layer (three keys configuration which
-may be switched). However I've been told there are keyboards without
-layer switch. If so, just keep single layer in configuration file and you
-are done.
+All keyboards I have seen have three layers (three key configurations which may be switched).  
+However, I have been told there are keyboards without layer switch.
+If so, just keep a single layer in the configuration file and you are done.
 
 ### Custom keyboard layouts
 
-If you use custom keyboard layout, like Dvorak, note that what you
-write in configuration is in fact scan code of keyboard key and not
-character that will be produced.
+If you use a custom keyboard layout, like Dvorak, note that you will need to write the keyboard key's scan code in the configuration file (not the character that is produced).
 
-So use QWERTY-letter of keyboard key you want to press.
+So use the QWERTY letter of the keyboard key you want to press.
 
 ### 3x1 keys + 1 knob keyboard limitations
 
-This modification does support key modifiers (like ctrl-, alt-) for the first key in sequence only.
+This modification does support key modifiers (like `ctrl-`, `alt-`, and `cmd-`) for the first key in sequence only.
 
 So you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
 
