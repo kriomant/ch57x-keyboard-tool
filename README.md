@@ -155,6 +155,16 @@ This modification does support key modifiers (like ctrl-, alt-) for the first ke
 
 So you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
 
+### macOS vs Windows keyboard keys
+
+Friendly reminder that some keys have different names on macOS and Windows.  
+Make sure to use the correct key names in your configuration file.
+
+| Key Name          | macOS Key | Windows Key |
+| ----------------- | --------- | ----------- |
+| Command / Windows | `cmd`     | `win`       |
+| Option / Alt      | `cmd`     | `alt`       |
+
 ## Diagnostics
 
 When reporting an issue, please include diagnostics such as the list of attached USB devices and the output of the `keyboard` and `mouse` monitoring tools.
