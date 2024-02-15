@@ -52,22 +52,32 @@ Download the latest release from [GitHub releases](https://github.com/kriomant/c
     * Windows: download and run [rustup-init.exe](https://win.rustup.rs/)
 1. Execute `cargo install ch57x-keyboard-tool`.
 
-## How to use?
+## Usage
 
-**Note**: on Windows you need to install [USBDK](https://github.com/daynix/UsbDk/releases) first.
+**Note**: Windows users need to install [USBDK](https://github.com/daynix/UsbDk/releases) first.
 
-Now create you own config from provided *example-mapping.yaml*. Example
-config has extensive documentation and examples inside.
+1. Connect the keyboard to the computer with the USB cable.
+1. Create a configuration file based on the provided [example-mapping.yaml](example-mapping.yaml).
+    * Example config has extensive documentation and examples inside.
+1. Validate the configuration file.
+1. Upload the configuration to the keyboard.
+1. Done! 🎉
 
-You can validate config:
+### List all supported modifiers and key names
+
+Use 'show-keys' command to list all supported modifiers and key names.
+
+```shell
+./ch57x-keyboard-tool show-keys
+```
+
+### Validate the config file
 
 ```shell
 ./ch57x-keyboard-tool validate < your-config.yaml
 ```
 
-Use 'show-keys' command to list all supported modifier and key names.
-
-Finally, upload config to keyboard:
+### Upload the config to the keyboard
 
 ```shell
 ./ch57x-keyboard-tool upload < your-config.yaml
@@ -75,9 +85,13 @@ Finally, upload config to keyboard:
 
 Use 'sudo' if you get 'Access denied (insufficient permissions)':
 
-    sudo ./ch57x-keyboard-tool upload < your-config.yaml
+```shell
+sudo ./ch57x-keyboard-tool upload < your-config.yaml
+```
 
-You can also change LED configuration, if you keyboard supports it:
+### Change led configuration
+
+If your keyboard supports it, you can change the LED configuration:
 
 ```shell
 ./ch57x-keyboard-tool led 1
@@ -85,9 +99,11 @@ You can also change LED configuration, if you keyboard supports it:
 
 ### Windows / PowerShell
 
-Use `Get-Content` for input redireciton:
+Use `Get-Content` for input redirection:
 
-    Get-Content your-config.yaml | ./ch57x-keyboard-tool validate
+```shell
+Get-Content your-config.yaml | ./ch57x-keyboard-tool validate
+```
 
 ### Automation
 
