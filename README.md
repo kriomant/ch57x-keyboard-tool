@@ -117,7 +117,7 @@ So you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
 
 ## Diagnostics
 
-If you have any troubles using this software, please provide diagnostics.
+When reporting an issue, please include diagnostics such as the list of attached USB devices and the output of the `keyboard` and `mouse` monitoring tools.
 
 ### How to Find and List Connected USB Devices
 
@@ -147,7 +147,7 @@ Get-PnpDevice | Where-Object { $_.Class -eq 'USB' } | Format-Table Name, DeviceI
 
 ### Monitoring generated keyboard and mouse events
 
-Most simple (and cross-platform) way I've found is using `keyboard` and `mouse` Python modules.
+The most simple (and cross-platform) way I have found is using `keyboard` and `mouse` Python modules.
 
 Monitoring keyboard:
 
