@@ -7,7 +7,7 @@ mod parse;
 use crate::config::Config;
 use crate::options::{Command, LedCommand};
 use crate::{options::Options, keyboard::Key};
-use crate::keyboard::{Keyboard, KnobAction, Modifier, WellKnownCode, MediaCode, MouseAction, MouseButton};
+use crate::keyboard::{Keyboard, KnobAction, MediaCode, Modifier, MouseAction, MouseButton, WellKnownCode, k8840, k8880};
 
 use anyhow::{anyhow, ensure, Result};
 use itertools::Itertools;
@@ -104,7 +104,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn open_keyboard(options: &Options) -> Result<Keyboard> {
+fn open_keyboard(options: &Options) -> Result<Box<dyn Keyboard>> {
     // Find USB device and endpoint.
     let (device, desc) = find_device(options).context("find USB device")?;
 
@@ -116,11 +116,13 @@ fn open_keyboard(options: &Options) -> Result<Keyboard> {
     let conf_desc = device
         .config_descriptor(0)
         .context("get config #0 descriptor")?;
+
     let intf = conf_desc
         .interfaces()
-        .find(|intf| intf.number() == 1)
+        .find(|intf| intf.number() == options.devel_options.interface_number)
         .ok_or_else(|| {
-            anyhow!("interface #1 not found, interface numbers:\n{:#?}",
+            anyhow!("interface #{} not found, interface numbers:\n{:#?}",
+                options.devel_options.interface_number,
                 conf_desc.interfaces().map(|i| i.number()).format(", "))
         })?;
     let intf_desc = intf
@@ -161,7 +163,13 @@ fn open_keyboard(options: &Options) -> Result<Keyboard> {
     let mut handle = device.open().context("open USB device")?;
     let _ = handle.set_auto_detach_kernel_driver(true);
     handle.claim_interface(intf.number()).context("claim interface")?;
-    Keyboard::new(handle, endpt_desc.address()).context("init keyboard")
+
+    if options.devel_options.product_id == 0x8840 {
+        k8840::Keyboard8840::new(handle, endpt_desc.address()).context("init keyboard")
+    } else {
+        k8880::Keyboard8880::new(handle, endpt_desc.address()).context("init keyboard")
+    }
+
 }
 
 fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor)> {

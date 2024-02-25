@@ -1,0 +1,90 @@
+use anyhow::{ensure, Result};
+use log::debug;
+use rusb::{Context, DeviceHandle};
+
+use super::{Key, Keyboard, Macro, MouseAction, MouseEvent, DEFAULT_TIMEOUT};
+
+
+pub struct Keyboard8880 {
+    handle: DeviceHandle<Context>,
+    endpoint: u8,
+    buf: [u8; 64],
+}
+
+impl Keyboard for Keyboard8880 {
+    fn bind_key(&mut self, layer: u8, key: Key, expansion: &Macro) -> Result<()> {
+        ensure!(layer <= 15, "invalid layer index");
+
+        debug!("bind {} on layer {} to {}", key, layer, expansion);
+
+        // Start key binding
+        self.send([0xfe, layer+1, 0x1, 0x1, 0, 0, 0, 0])?;
+
+        match expansion {
+            Macro::Keyboard(presses) => {
+                ensure!(presses.len() <= 5, "macro sequence is too long");
+                // For whatever reason empty key is added before others.
+                let iter = presses.iter().map(|accord| (accord.modifiers.as_u8(), accord.code.map_or(0, |c| c.value())));
+                let (len, items) = (presses.len() as u8, Box::new(std::iter::once((0, 0)).chain(iter)));
+                for (i, (modifiers, code)) in items.enumerate() {
+                    self.send([
+                        key.to_key_id_12()?,
+                        ((layer+1) << 4) | expansion.kind(),
+                        len,
+                        i as u8,
+                        modifiers,
+                        code,
+                        0,
+                        0,
+                    ])?;
+                }
+            }
+            Macro::Media(code) => {
+                let [low, high] = (*code as u16).to_le_bytes();
+                self.send([key.to_key_id_12()?, ((layer+1) << 4) | 0x02, low, high, 0, 0, 0, 0])?;
+            }
+
+            Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
+                ensure!(!buttons.is_empty(), "buttons must be given for click macro");
+                self.send([key.to_key_id_12()?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0])?;
+            }
+            Macro::Mouse(MouseEvent(MouseAction::WheelUp, modifier)) => {
+                self.send([key.to_key_id_12()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0x01, modifier.map_or(0, |m| m as u8), 0])?;
+            }
+            Macro::Mouse(MouseEvent(MouseAction::WheelDown, modifier)) => {
+                self.send([key.to_key_id_12()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0xff, modifier.map_or(0, |m| m as u8), 0])?;
+            }
+        };
+
+        // Finish key binding
+        self.send([0xaa, 0xaa, 0, 0, 0, 0, 0, 0])?;
+
+        Ok(())
+    }
+
+    fn set_led(&mut self, n: u8) -> Result<()> {
+        self.send([0xa1, 0x01, 0, 0, 0, 0, 0, 0])?;
+        self.send([0xb0, 0x18, n, 0, 0, 0, 0, 0])?;
+        self.send([0xaa, 0xa1, 0, 0, 0, 0, 0, 0])?;
+        Ok(())
+    }
+}
+
+impl Keyboard8880 {
+    pub fn new(handle: DeviceHandle<Context>, endpoint: u8) -> Result<Box<dyn Keyboard>> {
+        let mut keyboard = Self { handle, endpoint, buf: [0; 64] };
+
+        keyboard.buf[0] = 0x03;
+        keyboard.send([0, 0, 0, 0, 0, 0, 0, 0])?;
+
+        Ok(Box::new(keyboard))
+    }
+
+    fn send(&mut self, pkt: [u8; 8]) -> Result<()> {
+        self.buf[1..9].copy_from_slice(pkt.as_slice());
+        debug!("send: {:02x?}", self.buf);
+        let written = self.handle.write_interrupt(self.endpoint, &self.buf, DEFAULT_TIMEOUT)?;
+        ensure!(written == self.buf.len(), "not all data written");
+        Ok(())
+    }
+}
