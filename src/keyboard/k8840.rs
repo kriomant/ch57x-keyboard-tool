@@ -1,10 +1,8 @@
-use std::time::Duration;
-
 use anyhow::{ensure, Result};
 use log::debug;
 use rusb::{Context, DeviceHandle};
 
-use super::{Key, Keyboard, Macro, MouseAction, MouseEvent, DEFAULT_TIMEOUT};
+use super::{Key, Keyboard, Macro, MouseAction, MouseEvent};
 
 pub struct Keyboard8840 {
     handle: DeviceHandle<Context>,
@@ -17,20 +15,33 @@ impl Keyboard for Keyboard8840 {
 
         debug!("bind {} on layer {} to {}", key, layer, expansion);
 
-        let mut msg = vec![0x03, 0xfe, key.to_key_id_16()?, layer+1, expansion.kind(), 0, 0, 0, 0, 0];
+        let mut msg = vec![
+            0x03,
+            0xfe,
+            key.to_key_id_16()?,
+            layer + 1,
+            expansion.kind(),
+            0,
+            0,
+            0,
+            0,
+            0,
+        ];
 
         match expansion {
             Macro::Keyboard(presses) => {
                 ensure!(presses.len() <= 5, "macro sequence is too long");
                 // For whatever reason empty key is added before others.
-                let iter = presses.iter().map(|accord| (accord.modifiers.as_u8(), accord.code.map_or(0, |c| c.value())));
+                let iter = presses.iter().map(|accord| {
+                    (
+                        accord.modifiers.as_u8(),
+                        accord.code.map_or(0, |c| c.value()),
+                    )
+                });
 
                 msg.extend_from_slice(&[presses.len() as u8]);
-                for (i, (modifiers, code)) in iter.enumerate() {
-                    msg.extend_from_slice(&[
-                        modifiers,
-                        code,
-                    ]);
+                for (modifiers, code) in iter {
+                    msg.extend_from_slice(&[modifiers, code]);
                 }
             }
             Macro::Media(code) => {
@@ -49,41 +60,32 @@ impl Keyboard for Keyboard8840 {
             }
         };
 
-
-        let mut buf = [0; 65];
-        buf.iter_mut().zip(msg.iter()).for_each(|(dst, src)| {
-            *dst = *src;
-        });
-        self.send(&buf)?;
+        self.send(&msg)?;
 
         Ok(())
     }
 
-    fn set_led(&mut self, n: u8) -> Result<()> {
-        todo!("LEDs");
-        // self.send([0xa1, 0x01, 0, 0, 0, 0, 0, 0])?;
-        // self.send([0xb0, 0x18, n, 0, 0, 0, 0, 0])?;
-        // self.send([0xaa, 0xa1, 0, 0, 0, 0, 0, 0])?;
-        Ok(())
+    fn set_led(&mut self, _n: u8) -> Result<()> {
+        unimplemented!("If you have a device which supports backlight LEDs, please let us know at \
+                        https://github.com/kriomant/ch57x-keyboard-tool/issues/60. We'll be glad to \
+                        help you reverse-engineer it.")
+    }
+
+    fn get_handle(&self) -> &DeviceHandle<Context> {
+        &self.handle
+    }
+
+    fn get_endpoint(&self) -> u8 {
+        self.endpoint
     }
 }
 
 impl Keyboard8840 {
-    pub fn new(handle: DeviceHandle<Context>, endpoint: u8) -> Result<Box<dyn Keyboard>> {
+    pub fn new(handle: DeviceHandle<Context>, endpoint: u8) -> Result<Self> {
         let mut keyboard = Self { handle, endpoint };
 
-        let mut buf = [0; 65];
-        buf[0] = 0x03;
-        keyboard.send(&buf)?;
+        keyboard.send(&[])?;
 
-        Ok(Box::new(keyboard))
-    }
-
-    fn send(&mut self, buf: &[u8]) -> Result<()> {
-        debug!("send: {:02x?}", buf);
-        let written = self.handle.write_interrupt(self.endpoint, &buf, DEFAULT_TIMEOUT)?;
-        ensure!(written == buf.len(), "not all data written");
-        Ok(())
+        Ok(keyboard)
     }
 }
-

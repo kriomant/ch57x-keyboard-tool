@@ -7,6 +7,8 @@ use std::{time::Duration, str::FromStr, fmt::Display};
 
 use anyhow::{anyhow, ensure, Result};
 use enumset::{EnumSetType, EnumSet};
+use log::debug;
+use rusb::{Context, DeviceHandle};
 use serde_with::DeserializeFromStr;
 use strum_macros::{EnumString, Display, EnumIter, EnumMessage};
 
@@ -17,6 +19,23 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
 pub trait Keyboard {
     fn bind_key(&mut self, layer: u8, key: Key, expansion: &Macro) -> Result<()>;
     fn set_led(&mut self, n: u8) -> Result<()>;
+
+    fn get_handle(&self) -> &DeviceHandle<Context>;
+    fn get_endpoint(&self) -> u8;
+
+    fn send(&mut self, msg: &[u8]) -> Result<()> {
+        let mut buf = [0; 64];
+        buf.iter_mut().zip(msg.iter()).for_each(|(dst, src)| {
+            *dst = *src;
+        });
+
+        debug!("send: {:02x?}", buf);
+        let written = self
+            .get_handle()
+            .write_interrupt(self.get_endpoint(), &buf, DEFAULT_TIMEOUT)?;
+        ensure!(written == buf.len(), "not all data written");
+        Ok(())
+    }
 }
 
 #[allow(unused)]

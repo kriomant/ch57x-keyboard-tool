@@ -1,25 +1,29 @@
-mod consts;
-mod options;
-mod keyboard;
 mod config;
+mod consts;
+mod keyboard;
+mod options;
 mod parse;
 
 use crate::config::Config;
+use crate::consts::PRODUCT_IDS;
+use crate::keyboard::{
+    k8840, k8880, Keyboard, KnobAction, MediaCode, Modifier, MouseAction, MouseButton,
+    WellKnownCode,
+};
 use crate::options::{Command, LedCommand};
-use crate::{options::Options, keyboard::Key};
-use crate::keyboard::{Keyboard, KnobAction, MediaCode, Modifier, MouseAction, MouseButton, WellKnownCode, k8840, k8880};
+use crate::{keyboard::Key, options::Options};
 
 use anyhow::{anyhow, ensure, Result};
+use indoc::indoc;
 use itertools::Itertools;
 use log::debug;
-use rusb::{Device, DeviceDescriptor, Context, TransferType};
-use indoc::indoc;
+use rusb::{Context, Device, DeviceDescriptor, TransferType};
 
 use anyhow::Context as _;
 use clap::Parser as _;
 use rusb::UsbContext as _;
-use strum::IntoEnumIterator as _;
 use strum::EnumMessage as _;
+use strum::IntoEnumIterator as _;
 
 fn main() -> Result<()> {
     env_logger::init();
@@ -104,75 +108,98 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn open_keyboard(options: &Options) -> Result<Box<dyn Keyboard>> {
-    // Find USB device and endpoint.
-    let (device, desc) = find_device(options).context("find USB device")?;
-
-    // Find device endpoint.
-    ensure!(
-        desc.num_configurations() == 1,
-        "only one device configuration is expected"
-    );
+fn find_interface_and_endpoint(
+    device: &Device<Context>,
+    interface_num: Option<u8>,
+    endpoint_addr: u8,
+) -> Result<(u8, u8)> {
     let conf_desc = device
         .config_descriptor(0)
         .context("get config #0 descriptor")?;
 
-    let intf = conf_desc
-        .interfaces()
-        .find(|intf| intf.number() == options.devel_options.interface_number)
-        .ok_or_else(|| {
-            anyhow!("interface #{} not found, interface numbers:\n{:#?}",
-                options.devel_options.interface_number,
-                conf_desc.interfaces().map(|i| i.number()).format(", "))
+    // Get the numbers of interfaces to explore
+    let interface_nums = match interface_num {
+        Some(iface_num) => vec![iface_num],
+        None => conf_desc.interfaces().map(|iface| iface.number()).collect(),
+    };
+
+    for iface_num in interface_nums {
+        debug!("Probing interface {iface_num}");
+
+        // Look for an interface with the given number
+        let intf = conf_desc
+            .interfaces()
+            .find(|iface| iface_num == iface.number())
+            .ok_or_else(|| {
+                anyhow!(
+                    "interface #{} not found, interface numbers:\n{:#?}",
+                    iface_num,
+                    conf_desc.interfaces().map(|i| i.number()).format(", ")
+                )
+            })?;
+
+        // Check that it's a HID device
+        let intf_desc = intf.descriptors().exactly_one().map_err(|_| {
+            anyhow!(
+                "only one interface descriptor is expected, got:\n{:#?}",
+                intf.descriptors().format("\n")
+            )
         })?;
-    let intf_desc = intf
-        .descriptors()
-        .exactly_one()
-        .map_err(|_| {
-            anyhow!("only one interface descriptor is expected, got:\n{:#?}",
-                intf.descriptors().format("\n"))
-        })?;
+        ensure!(
+            intf_desc.class_code() == 0x03
+                && intf_desc.sub_class_code() == 0x00
+                && intf_desc.protocol_code() == 0x00,
+            "unexpected interface parameters: {:#?}",
+            intf_desc
+        );
+
+        // Look for suitable endpoints
+        if let Some(endpt_desc) = intf_desc.endpoint_descriptors().find(|ep| {
+            ep.transfer_type() == TransferType::Interrupt && ep.address() == endpoint_addr
+        }) {
+            debug!("Found endpoint {endpt_desc:?}");
+            return Ok((iface_num, endpt_desc.address()));
+        }
+    }
+
+    Err(anyhow!("No valid interface/endpoint combination found!"))
+}
+
+fn open_keyboard(options: &Options) -> Result<Box<dyn Keyboard>> {
+    // Find USB device based on the product id
+    let (device, desc, id_product) = find_device(options).context("find USB device")?;
+
     ensure!(
-        intf_desc.class_code() == 0x03
-            && intf_desc.sub_class_code() == 0x00
-            && intf_desc.protocol_code() == 0x00,
-        "unexpected interface parameters: {:#?}", intf_desc
+        desc.num_configurations() == 1,
+        "only one device configuration is expected"
     );
 
-    let mut endpt_descs = intf_desc
-        .endpoint_descriptors()
-        .filter(|ep| ep.transfer_type() == TransferType::Interrupt);
-    let endpt_desc = if let Some(endpoint_address) = options.devel_options.endpoint_address {
-        endpt_descs
-            .find(|d| d.address() == endpoint_address)
-            .ok_or_else(|| anyhow!("endpoint with address {} not found", endpoint_address))?
-    } else {
-        endpt_descs
-            .exactly_one()
-            .map_err(|_| {
-                anyhow!(indoc!(
-                    "single interrupt endpoint is expected, got:
-                    {:#?}
-
-                    You may try to choose one using --endpoint-address"
-                ), intf_desc.endpoint_descriptors().format("\n"))
-            })?
-    };
+    // Find correct endpoint
+    let (intf_num, endpt_addr) = find_interface_and_endpoint(
+        &device,
+        options.devel_options.interface_number,
+        options.devel_options.endpoint_address,
+    )?;
 
     // Open device.
     let mut handle = device.open().context("open USB device")?;
     let _ = handle.set_auto_detach_kernel_driver(true);
-    handle.claim_interface(intf.number()).context("claim interface")?;
+    handle
+        .claim_interface(intf_num)
+        .context("claim interface")?;
 
-    if options.devel_options.product_id == 0x8840 {
-        k8840::Keyboard8840::new(handle, endpt_desc.address()).context("init keyboard")
-    } else {
-        k8880::Keyboard8880::new(handle, endpt_desc.address()).context("init keyboard")
+    match id_product {
+        0x8840 => {
+            k8840::Keyboard8840::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
+        }
+        0x8880 => {
+            k8880::Keyboard8880::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
+        }
+        _ => unreachable!("This shouldn't happen!"),
     }
-
 }
 
-fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor)> {
+fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor, u16)> {
     let options = vec![
         #[cfg(windows)] rusb::UsbOption::use_usbdk(),
     ];
@@ -188,9 +215,14 @@ fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor)> {
             desc.vendor_id(),
             desc.product_id()
         );
-        if desc.vendor_id() == opts.devel_options.vendor_id && desc.product_id() == opts.devel_options.product_id {
-            found.push((device, desc));
-            continue
+        let product_id = desc.product_id();
+        if desc.vendor_id() == opts.devel_options.vendor_id
+            && match opts.devel_options.product_id {
+                Some(prod_id) => prod_id == product_id,
+                None => PRODUCT_IDS.contains(&product_id),
+            }
+        {
+            found.push((device, desc, product_id));
         }
     }
 
@@ -201,7 +233,7 @@ fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor)> {
         1 => Ok(found.pop().unwrap()),
         _ => {
             let mut addresses = vec![];
-            for (device, desc) in found {
+            for (device, desc, product_id) in found {
                 /*let handle = device.open().context("open device")?;
                 let langs = handle.read_languages(DEFAULT_TIMEOUT).context("get langs")?;
                 dbg!(&langs);
@@ -222,7 +254,7 @@ fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor)> {
                     .context("read serial")?;*/
                 let address = (device.bus_number(), device.address());
                 if opts.devel_options.address.as_ref() == Some(&address) {
-                    return Ok((device, desc))
+                    return Ok((device, desc, product_id))
                 }
 
                 addresses.push(address);
