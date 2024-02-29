@@ -7,7 +7,7 @@ mod parse;
 use crate::config::Config;
 use crate::consts::PRODUCT_IDS;
 use crate::keyboard::{
-    k8840, k8880, Keyboard, KnobAction, MediaCode, Modifier, MouseAction, MouseButton,
+    k884x, k8880, Keyboard, KnobAction, MediaCode, Modifier, MouseAction, MouseButton,
     WellKnownCode,
 };
 use crate::options::{Command, LedCommand};
@@ -189,8 +189,8 @@ fn open_keyboard(options: &Options) -> Result<Box<dyn Keyboard>> {
         .context("claim interface")?;
 
     match id_product {
-        0x8840 => {
-            k8840::Keyboard8840::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
+        0x8840 | 0x8842 => {
+            k884x::Keyboard884x::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
         }
         0x8880 => {
             k8880::Keyboard8880::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
