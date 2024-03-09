@@ -189,7 +189,7 @@ So, you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
 ### macOS vs Windows keyboard keys
 
 A friendly reminder that some keys have different names on macOS and Windows.  
-Make sure to use the correct key names in your configuration file.
+These keys have aliases for both platforms, you may use them interchangeably.
 
 | Key Name          | macOS Key | Windows Key |
 | ----------------- | --------- | ----------- |
