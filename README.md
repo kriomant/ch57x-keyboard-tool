@@ -1,149 +1,259 @@
-# What is this?
+# ch57x-keyboard-tool Macro Keyboard Configuration Utility
 
-This is an utility for programming small keyboards like this one:
+![Last Commit Shields.io](https://img.shields.io/github/last-commit/kriomant/ch57x-keyboard-tool?style=for-the-badge) ![Release Workflow Badge](https://github.com/kriomant/ch57x-keyboard-tool/actions/workflows/release.yml/badge.svg)
 
-![](doc/keyboard-12-2.png)
+## Table of Contents <!-- omit in toc -->
 
-Such keyboards are popular on AliExpress and seller usually sends software
-for programming, but it:
- * requires Windows,
- * is very ugly and inconvenient,
- * can only program one key at a time
- * don't expose all keyboard features
+* [What is this?](#what-is-this)
+    * [Supported keyboards](#supported-keyboards)
+* [Installation](#installation)
+    * [Prebuilt release](#prebuilt-release)
+    * [Build it yourself](#build-it-yourself)
+* [Usage](#usage)
+    * [Commands and options](#commands-and-options)
+    * [Validate the config file](#validate-the-config-file)
+    * [Upload the config to the keyboard](#upload-the-config-to-the-keyboard)
+    * [Change LED configuration](#change-led-configuration)
+    * [Windows / PowerShell](#windows--powershell)
+* [Automation](#automation)
+* [Notes](#notes)
+    * [Number of layers](#number-of-layers)
+    * [Custom keyboard layouts](#custom-keyboard-layouts)
+    * [3x1 keys + 1 knob keyboard limitations](#3x1-keys--1-knob-keyboard-limitations)
+    * [macOS vs Windows keyboard keys](#macos-vs-windows-keyboard-keys)
+* [Diagnostics](#diagnostics)
+    * [How to find and list connected USB devices](#how-to-find-and-list-connected-usb-devices)
+        * [macOS](#macos)
+        * [Linux](#linux)
+        * [Windows](#windows)
+    * [Monitoring generated keyboard and mouse events](#monitoring-generated-keyboard-and-mouse-events)
+* [Supported macro keyboards](#supported-macro-keyboards)
+    * [Photos of supported keyboards](#photos-of-supported-keyboards)
 
-There are several modifications of such keyboards with different number of
-buttons and knobs ([see some photos](#photos)) and with/without Bluetooth.
+## What is this?
 
-Both wired and wireless keyboards are supported, however programming
-is possible though wire only in both cases!
+This keyboard configuration utility is for programming small keyboards, such as the one shown below:
 
-Utility was reported to work with:
- * 3×4 with 2 knobs (Bluetooth version)
- * 3×3 with 2 knobs
- * 3x2 with 1 knob
- * 3x1 with 1 knob (but [read about it's limitations](#3x1-keys--1-knob-keyboard-limitations))
+![Picture of keyboard-12-2](doc/keyboard-12-2.png)
 
-All these keyboards share same vendor/product IDs: 1189:8890 (hexadecimal).
-It is possible to override used vendor/product ID, but it is usually not needed.
-Use it only if you find same-looking keyboard with other vendor/product ID,
-I haven't seen such.
+Such macro keyboards are popular on AliExpress, and sellers often include software for programming, but:
+* It requires Windows
+* It is very ugly and inconvenient
+* It can only program one key at a time
+* It does not expose all keyboard features
 
-**Ability to override vendor/product ID doesn't mean that you can use
-this software for programming arbitrary keyboards!**
+There are several modifications of such keyboards with different numbers of buttons and knobs (see the [photos of supported keyboards](#photos-of-supported-keyboards)) and with/without Bluetooth.
 
-# How to get it?
+Both wired and wireless keyboards are supported.  
+⚠️ However, the keyboard must be connected to the computer with a USB cable when programming.
 
-## Get prebuilt release
+### Supported keyboards
 
-Download latest release from [GitHub releases](https://github.com/kriomant/ch57x-keyboard-tool/releases)
+This utility has been reported to work with:
+* 3×4 with 2 knobs (Bluetooth version)
+* 3×3 with 2 knobs
+* 3x2 with 1 knob
+* 3x1 with 1 knob with [limitations](#3x1-keys--1-knob-keyboard-limitations)
 
-## Build it yourself
+All these keyboards share the same vendor/product IDs: `1189:8890` (hexadecimal).
+It is possible to override the used vendor/product ID, but it is usually unnecessary.
+Use this utility on similar-looking keyboard with a different vendor/product ID.
 
-Install *cargo* utility using [rustup](https://rustup.rs/), then execute
-`cargo install ch57x-keyboard-tool`.
+For more details, refer to the [Supported Macro Keyboards](#supported-macro-keyboards) section.
 
-# How to use?
+**⚠️ The ability to override the vendor/product ID does not mean that you can use this utility to program arbitrary keyboards!**
 
-**Note**: on Windows you need to install [USBDK](https://github.com/daynix/UsbDk/releases) first.
+## Installation
 
-Now create you own config from provided *example-mapping.yaml*. Example
-config has extensive documentation and examples inside.
+There are two ways to download the keyboard utility: getting a prebuilt release or building it yourself.
 
-You can validate config:
+### Prebuilt release
 
-    ./ch57x-keyboard-tool validate < your-config.yaml
+Simply download the [latest release from GitHub](https://github.com/kriomant/ch57x-keyboard-tool/releases).
 
-Use 'show-keys' command to list all supported modifier and key names.
+### Build it yourself
 
-Finally, upload config to keyboard:
+1. Install the *cargo* utility using [rustup](https://rustup.rs/):
+    * Brew: `brew install rustup-init && rustup-init`
+    * Linux: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+    * Windows: Download and run [rustup-init.exe](https://win.rustup.rs/)
+2. Execute `cargo install ch57x-keyboard-tool`.
 
-    ./ch57x-keyboard-tool upload < your-config.yaml
+## Usage
+
+**Note**: Windows users need to install [USBDK](https://github.com/daynix/UsbDk/releases) first.
+
+1. Connect the keyboard to the computer with a USB cable.
+2. Create a configuration file based on the provided [example-mapping.yaml](example-mapping.yaml).
+    * The example config file has extensive documentation inside.
+3. Validate the configuration file.
+4. Upload the configuration to the keyboard.
+5. Done! 🎉
+
+### Commands and options
+
+```shell
+ch57x-keyboard-tool [OPTIONS] <COMMAND>
+```
+
+Commands and their descriptions:
+
+| Command                | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `show-keys`            | Display a list of all supported keys and modifiers        |
+| `validate`             | Validate key mappings config from stdin                   |
+| `upload`               | Upload key mappings from stdin to the device              |
+| `led`                  | Select LED backlight mode                                 |
+| `help`, `-h`, `--help` | Print this message or the help of the given subcommand(s) |
+
+Options and their descriptions:
+
+| Option                      | Description                 | Notes            |
+| --------------------------- | --------------------------- | ---------------- |
+| `--vendor-id <VENDOR_ID>`   | Vendor ID of the keyboard   | Default: `4489`  |
+| `--product-id <PRODUCT_ID>` | Product ID of the keyboard  | Default: `34960` |
+| `--address <ADDRESS>`       | Address of the keyboard     |                  |
+
+### Validate the config file
+
+```shell
+./ch57x-keyboard-tool validate < your-config.yaml
+```
+
+### Upload the config to the keyboard
+
+```shell
+./ch57x-keyboard-tool upload < your-config.yaml
+```
 
 Use 'sudo' if you get 'Access denied (insufficient permissions)':
 
-    sudo ./ch57x-keyboard-tool upload < your-config.yaml
+```shell
+sudo ./ch57x-keyboard-tool upload < your-config.yaml
+```
 
-You can also change LED configuration, if you keyboard supports it:
+### Change LED configuration
 
-    ./ch57x-keyboard-tool led 1
+If your keyboard supports it, you can change the LED configuration:
 
-## Windows / PowerShell
+```shell
+# Turn off the LED
+./ch57x-keyboard-tool led 0
 
-Use `Get-Content` for input redireciton:
+# Set the LED to the first mode (likely "Steady on")
+./ch57x-keyboard-tool led 1
+```
 
-    Get-Content your-config.yaml | ./ch57x-keyboard-tool validate
+### Windows / PowerShell
+
+Use `Get-Content` for input redirection:
+
+```shell
+Get-Content your-config.yaml | ./ch57x-keyboard-tool validate
+```
 
 ## Automation
 
-The frequent question is "How to run script / emulate several keys / … on key press?"
-This tool does just one job — writes your key bindings into keyboard and then exists, it does not
-listen for pressed key. If you want any automation, use third-party automation tools, like BetterTouchTool
-or dozens of other.
+A common question/request is about automation, such as "How to run a script?", "emulate several keys", or "how to trigger an action with a key press?"
 
-1. Choose some chord you don't usually use, like 'alt-ctrl-shift-1' and assign to some key
-2. Use third-party tool to listen for this chord and perform action you want.
-3. Done!
+This tool does just one job: **writes your key bindings into the keyboard** and then exits.  
+It does not listen for key presses.
+Automation based on key presses is not within the scope of this utility tool.
 
-# Notes
+If you seek any automation, use third-party automation tools like [BetterTouchTool](https://folivora.ai/).
 
-## Number of layers
+1. Choose a chord you do not usually use (like `alt-ctrl-shift-1`).
+2. Assign the chord to a key.
+3. Use a third-party automation tool to listen for this chord and have it perform the desired action.
+4. Done! 🎉
 
-All keyboards I've seen have three layer (three keys configuration which
-may be switched). However I've been told there are keyboards without
-layer switch. If so, just keep single layer in configuration file and you
-are done.
+## Notes
 
-## Custom keyboard layouts
+### Number of layers
 
-If you use custom keyboard layout, like Dvorak, note that what you
-write in configuration is in fact scan code of keyboard key and not
-character that will be produced.
+All keyboards I have seen have three layers (three key configurations which may be switched).
+However, if your keyboard does not support layer switching, just keep a single layer in the configuration file.
 
-So use QWERTY-letter of keyboard key you want to press.
+### Custom keyboard layouts
 
-## 3x1 keys + 1 knob keyboard limitations
+If you use a custom keyboard layout, like [Dvorak](https://en.wikipedia.org/wiki/Dvorak_keyboard_layout), you will need to write the keyboard key's [scancode](https://en.wikipedia.org/wiki/Scancode) in the configuration file (not the character that is produced).
 
-This modification does support key modifiers (like ctrl-, alt-) for the first key in sequence only.
+So, use the QWERTY letter of the keyboard key you want to press.
 
-So you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
+### 3x1 keys + 1 knob keyboard limitations
 
-# Diagnostics
+This modification does support key modifiers (like `ctrl-`, `alt-`, and `cmd-`) for the first key in sequence only.
 
-If you have any troubles using this software, please provide diagnostics.
+So, you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
 
-## Getting list of attached USB devices
+### macOS vs Windows keyboard keys
 
-### MacOS
+A friendly reminder that some keys have different names on macOS and Windows.  
+Make sure to use the correct key names in your configuration file.
 
+| Key Name          | macOS Key | Windows Key |
+| ----------------- | --------- | ----------- |
+| Command / Windows | `cmd`     | `win`       |
+| Option / Alt      | `opt`     | `alt`       |
 
-    ioreg -w0 -l -p IOUSB
+## Diagnostics
+
+When reporting an issue, please include diagnostics such as the list of attached USB devices and the output of the `keyboard` and `mouse` monitoring tools.
+
+### How to find and list connected USB devices
+
+#### macOS
+
+```shell
+system_profiler SPUSBDataType
+```
 
 or
 
-    system_profiler SPUSBDataType
+```shell
+ioreg -w0 -l -p IOUSB
+```
 
-### Linux
+#### Linux
 
+```shell
+lsusb -v
+```
 
-    lsusb -v
+#### Windows
 
-## Monitoring generated keyboard and mouse events
+```powershell
+Get-PnpDevice | Where-Object { $_.Class -eq 'USB' } | Format-Table Name, DeviceID, Manufacturer, Status, Description -AutoSize
+```
 
-Most simple (and cross-platform) way I've found is using `keyboard` and `mouse` Python modules.
+### Monitoring generated keyboard and mouse events
+
+The simplest and cross-platform way to monitor keyboard and mouse events is using the `keyboard` and `mouse` Python modules.
 
 Monitoring keyboard:
 
-    pip3 install keyboard
-    sudo python3 -m keyboard
+```shell
+pip3 install keyboard
+sudo python3 -m keyboard
+```
 
 Monitoring mouse:
+* The latest published 'mouse' module doesn't support macOS, so use the latest version from GitHub
 
-    # Latest published 'mouse' module doesn't support MacOS, so use latest version from Git:
-    git clone https://github.com/boppreh/mouse
-    cd mouse
-    python3 -m mouse
+```shell
+git clone https://github.com/boppreh/mouse
+cd mouse
+python3 -m mouse
+```
 
-## Photos
+## Supported macro keyboards
 
-![](doc/keyboard-6-1.png)
-![](doc/keyboard-3-1.jpg)
+* Product ID: 0x8890
+    * Vendor ID: 0x1189  (Trisat Industrial Co., Ltd.)
+    * [amazon.co.jp/dp/B0CF5L8HP3](https://www.amazon.co.jp/dp/B0CF5L8HP3)
+
+### Photos of supported keyboards
+
+| 3x2 with 1 knob                       | 3x1 with 1 knob                       | 3×3 with 2 knobs                        |
+| ------------------------------------- | ------------------------------------- | --------------------------------------- |
+| ![keyboard-6-1](doc/keyboard-6-1.png) | ![keyboard-3-1](doc/keyboard-3-1.jpg) | ![keyboard-12-2](doc/keyboard-12-2.png) |
