@@ -26,7 +26,7 @@ impl Keyboard for Keyboard8890 {
                 let (len, items) = (presses.len() as u8, Box::new(std::iter::once((0, 0)).chain(iter)));
                 for (i, (modifiers, code)) in items.enumerate() {
                     self.send(&[
-                        key.to_key_id_12()?,
+                        key.to_key_id(12)?,
                         ((layer+1) << 4) | expansion.kind(),
                         len,
                         i as u8,
@@ -39,17 +39,17 @@ impl Keyboard for Keyboard8890 {
             }
             Macro::Media(code) => {
                 let [low, high] = (*code as u16).to_le_bytes();
-                self.send(&[key.to_key_id_12()?, ((layer+1) << 4) | 0x02, low, high, 0, 0, 0, 0])?;
+                self.send(&[key.to_key_id(12)?, ((layer+1) << 4) | 0x02, low, high, 0, 0, 0, 0])?;
             }
             Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
                 ensure!(!buttons.is_empty(), "buttons must be given for click macro");
-                self.send(&[key.to_key_id_12()?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0])?;
+                self.send(&[key.to_key_id(12)?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0])?;
             }
             Macro::Mouse(MouseEvent(MouseAction::WheelUp, modifier)) => {
-                self.send(&[key.to_key_id_12()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0x01, modifier.map_or(0, |m| m as u8), 0])?;
+                self.send(&[key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0x01, modifier.map_or(0, |m| m as u8), 0])?;
             }
             Macro::Mouse(MouseEvent(MouseAction::WheelDown, modifier)) => {
-                self.send(&[key.to_key_id_12()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0xff, modifier.map_or(0, |m| m as u8), 0])?;
+                self.send(&[key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0xff, modifier.map_or(0, |m| m as u8), 0])?;
             }
         };
 

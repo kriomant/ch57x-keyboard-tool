@@ -65,21 +65,12 @@ impl Display for Key {
 }
 
 impl Key {
-    fn to_key_id_12(self) -> Result<u8> {
+    fn to_key_id(self, base: u8) -> Result<u8> {
         match self {
-            Key::Button(n) if n >= 12 => Err(anyhow!("invalid key index")),
+            Key::Button(n) if n >= base => Err(anyhow!("invalid key index")),
             Key::Button(n) => Ok(n + 1),
             Key::Knob(n, _) if n >= 3 => Err(anyhow!("invalid knob index")),
-            Key::Knob(n, action) => Ok(13 + 3*n + (action as u8)),
-        }
-    }
-
-    fn to_key_id_16(self) -> Result<u8> {
-        match self {
-            Key::Button(n) if n >= 16 => Err(anyhow!("invalid key index")),
-            Key::Button(n) => Ok(n + 1),
-            Key::Knob(n, _) if n >= 3 => Err(anyhow!("invalid knob index")),
-            Key::Knob(n, action) => Ok(16 + 3*n + (action as u8)),
+            Key::Knob(n, action) => Ok(base + 1 + 3 * n + (action as u8)),
         }
     }
 }
