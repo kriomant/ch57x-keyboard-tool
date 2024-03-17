@@ -192,8 +192,8 @@ fn open_keyboard(options: &Options) -> Result<Box<dyn Keyboard>> {
         0x8840 | 0x8842 => {
             k884x::Keyboard884x::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
         }
-        0x8880 => {
-            k8880::Keyboard8880::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
+        0x8890 => {
+            k8880::Keyboard8890::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
         }
         _ => unreachable!("This shouldn't happen!"),
     }
@@ -264,7 +264,7 @@ fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor, u16
                 Several compatible devices are found.
                 Unfortunately, this model of keyboard doesn't have serial number.
                 So specify USB address using --address option.
-                
+
                 Addresses:
                 {}
             "}, addresses.iter().map(|(bus, addr)| format!("{bus}:{addr}")).join("\n")))

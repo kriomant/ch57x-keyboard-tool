@@ -25,9 +25,7 @@ pub trait Keyboard {
 
     fn send(&mut self, msg: &[u8]) -> Result<()> {
         let mut buf = [0; 64];
-        buf.iter_mut().zip(msg.iter()).for_each(|(dst, src)| {
-            *dst = *src;
-        });
+        buf[..msg.len()].copy_from_slice(msg);
 
         debug!("send: {:02x?}", buf);
         let written = self

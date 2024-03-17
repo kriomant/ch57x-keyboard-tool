@@ -4,12 +4,12 @@ use rusb::{Context, DeviceHandle};
 
 use super::{Key, Keyboard, Macro, MouseAction, MouseEvent};
 
-pub struct Keyboard8880 {
+pub struct Keyboard8890 {
     handle: DeviceHandle<Context>,
     endpoint: u8,
 }
 
-impl Keyboard for Keyboard8880 {
+impl Keyboard for Keyboard8890 {
     fn bind_key(&mut self, layer: u8, key: Key, expansion: &Macro) -> Result<()> {
         ensure!(layer <= 15, "invalid layer index");
 
@@ -75,7 +75,7 @@ impl Keyboard for Keyboard8880 {
     }
 }
 
-impl Keyboard8880 {
+impl Keyboard8890 {
     pub fn new(handle: DeviceHandle<Context>, endpoint: u8) -> Result<Self> {
         let mut keyboard = Self { handle, endpoint };
 

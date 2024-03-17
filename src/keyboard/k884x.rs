@@ -1,6 +1,8 @@
-use anyhow::{ensure, Result};
+use anyhow::{bail, ensure, Result};
 use log::debug;
 use rusb::{Context, DeviceHandle};
+
+use crate::keyboard::Accord;
 
 use super::{Key, Keyboard, Macro, MouseAction, MouseEvent};
 
@@ -31,17 +33,9 @@ impl Keyboard for Keyboard884x {
         match expansion {
             Macro::Keyboard(presses) => {
                 ensure!(presses.len() <= 5, "macro sequence is too long");
-                // For whatever reason empty key is added before others.
-                let iter = presses.iter().map(|accord| {
-                    (
-                        accord.modifiers.as_u8(),
-                        accord.code.map_or(0, |c| c.value()),
-                    )
-                });
-
-                msg.extend_from_slice(&[presses.len() as u8]);
-                for (modifiers, code) in iter {
-                    msg.extend_from_slice(&[modifiers, code]);
+                msg.push(presses.len() as u8);
+                for Accord { modifiers, code } in presses.iter() {
+                    msg.extend_from_slice(&[modifiers.as_u8(), code.map_or(0, |c| c.value())]);
                 }
             }
             Macro::Media(code) => {
@@ -66,9 +60,11 @@ impl Keyboard for Keyboard884x {
     }
 
     fn set_led(&mut self, _n: u8) -> Result<()> {
-        unimplemented!("If you have a device which supports backlight LEDs, please let us know at \
-                        https://github.com/kriomant/ch57x-keyboard-tool/issues/60. We'll be glad to \
-                        help you reverse-engineer it.")
+        bail!(
+            "If you have a device which supports backlight LEDs, please let us know at \
+               https://github.com/kriomant/ch57x-keyboard-tool/issues/60. We'll be glad to \
+               help you reverse-engineer it."
+        )
     }
 
     fn get_handle(&self) -> &DeviceHandle<Context> {
