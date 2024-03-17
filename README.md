@@ -15,7 +15,9 @@
     * [Upload the config to the keyboard](#upload-the-config-to-the-keyboard)
     * [Change LED configuration](#change-led-configuration)
     * [Windows / PowerShell](#windows--powershell)
-* [Automation](#automation)
+* [FAQ](#faq)
+    * [How to do … on key press?](#how-to-do--on-key-press)
+    * [Can you implement … feature?](#can-you-implement--feature)
 * [Notes](#notes)
     * [Number of layers](#number-of-layers)
     * [Custom keyboard layouts](#custom-keyboard-layouts)
@@ -152,7 +154,9 @@ Use `Get-Content` for input redirection:
 Get-Content your-config.yaml | ./ch57x-keyboard-tool validate
 ```
 
-## Automation
+## FAQ
+
+### How to do ... on key press?
 
 A common question/request is about automation, such as "How to run a script?", "emulate several keys", or "how to trigger an action with a key press?"
 
@@ -166,6 +170,12 @@ If you seek any automation, use third-party automation tools like [BetterTouchTo
 2. Assign the chord to a key.
 3. Use a third-party automation tool to listen for this chord and have it perform the desired action.
 4. Done! 🎉
+
+### Can you implement ... feature?
+
+I don't have detailed datasheet for these keyboards. So I can say whether something can implemented until you show me any software that can do it. Then it is teoretically possible to replicate behavior.
+
+However, doing it requires either exact keyboard model in my hands or you to performa reverse engeneering.
 
 ## Notes
 
