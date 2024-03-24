@@ -1,7 +1,7 @@
 use std::num::ParseIntError;
 
 use clap::{Args, Parser, Subcommand};
-use crate::consts::{VENDOR_ID, PRODUCT_ID};
+use crate::consts::VENDOR_ID;
 use crate::parse;
 
 #[derive(Parser)]
@@ -19,14 +19,17 @@ pub struct DevelOptions {
     #[arg(long, default_value_t=VENDOR_ID, value_parser=hex_or_decimal)]
     pub vendor_id: u16,
 
-    #[arg(long, default_value_t=PRODUCT_ID, value_parser=hex_or_decimal)]
-    pub product_id: u16,
+    #[arg(long, value_parser=hex_or_decimal)]
+    pub product_id: Option<u16>,
 
     #[arg(long, value_parser=parse_address)]
     pub address: Option<(u8, u8)>,
 
+    #[arg(long, default_value_t=0x4)]
+    pub endpoint_address: u8,
+
     #[arg(long)]
-    pub endpoint_address: Option<u8>,
+    pub interface_number: Option<u8>,
 }
 
 pub fn hex_or_decimal(s: &str) -> Result<u16, ParseIntError>

@@ -1,11 +1,14 @@
+pub(crate) mod k884x;
+pub(crate) mod k8880;
+
 use crate::parse;
 
 use std::{time::Duration, str::FromStr, fmt::Display};
 
-use log::debug;
-use rusb::{DeviceHandle, Context};
 use anyhow::{anyhow, ensure, Result};
 use enumset::{EnumSetType, EnumSet};
+use log::debug;
+use rusb::{Context, DeviceHandle};
 use serde_with::DeserializeFromStr;
 use strum_macros::{EnumString, Display, EnumIter, EnumMessage};
 
@@ -13,84 +16,22 @@ use itertools::Itertools as _;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
 
-pub struct Keyboard {
-    handle: DeviceHandle<Context>,
-    endpoint: u8,
-    buf: [u8; 64],
-}
+pub trait Keyboard {
+    fn bind_key(&mut self, layer: u8, key: Key, expansion: &Macro) -> Result<()>;
+    fn set_led(&mut self, n: u8) -> Result<()>;
 
-impl Keyboard {
-    pub fn new(handle: DeviceHandle<Context>, endpoint: u8) -> Result<Self> {
-        let mut keyboard = Self { handle, endpoint, buf: [0; 64] };
+    fn get_handle(&self) -> &DeviceHandle<Context>;
+    fn get_endpoint(&self) -> u8;
 
-        keyboard.buf[0] = 0x03;
-        keyboard.send([0, 0, 0, 0, 0, 0, 0, 0])?;
+    fn send(&mut self, msg: &[u8]) -> Result<()> {
+        let mut buf = [0; 64];
+        buf[..msg.len()].copy_from_slice(msg);
 
-        Ok(keyboard)
-    }
-
-    pub fn bind_key(&mut self, layer: u8, key: Key, expansion: &Macro) -> Result<()> {
-        ensure!(layer <= 15, "invalid layer index");
-
-        debug!("bind {} on layer {} to {}", key, layer, expansion);
-
-        // Start key binding
-        self.send([0xa1, layer+1, 0, 0, 0, 0, 0, 0])?;
-
-        match expansion {
-            Macro::Keyboard(presses) => {
-                ensure!(presses.len() <= 5, "macro sequence is too long");
-                // For whatever reason empty key is added before others.
-                let iter = presses.iter().map(|accord| (accord.modifiers.as_u8(), accord.code.map_or(0, |c| c.value())));
-                let (len, items) = (presses.len() as u8, Box::new(std::iter::once((0, 0)).chain(iter)));
-                for (i, (modifiers, code)) in items.enumerate() {
-                    self.send([
-                        key.to_key_id()?,
-                        ((layer+1) << 4) | expansion.kind(),
-                        len,
-                        i as u8,
-                        modifiers,
-                        code,
-                        0,
-                        0,
-                    ])?;
-                }
-            }
-            Macro::Media(code) => {
-                let [low, high] = (*code as u16).to_le_bytes();
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x02, low, high, 0, 0, 0, 0])?;
-            }
-
-            Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
-                ensure!(!buttons.is_empty(), "buttons must be given for click macro");
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0])?;
-            }
-            Macro::Mouse(MouseEvent(MouseAction::WheelUp, modifier)) => {
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0x01, modifier.map_or(0, |m| m as u8), 0])?;
-            }
-            Macro::Mouse(MouseEvent(MouseAction::WheelDown, modifier)) => {
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0xff, modifier.map_or(0, |m| m as u8), 0])?;
-            }
-        };
-
-        // Finish key binding
-        self.send([0xaa, 0xaa, 0, 0, 0, 0, 0, 0])?;
-
-        Ok(())
-    }
-
-    pub fn set_led(&mut self, n: u8) -> Result<()> {
-        self.send([0xa1, 0x01, 0, 0, 0, 0, 0, 0])?;
-        self.send([0xb0, 0x18, n, 0, 0, 0, 0, 0])?;
-        self.send([0xaa, 0xa1, 0, 0, 0, 0, 0, 0])?;
-        Ok(())
-    }
-
-    fn send(&mut self, pkt: [u8; 8]) -> Result<()> {
-        self.buf[1..9].copy_from_slice(pkt.as_slice());
-        debug!("send: {:02x?}", self.buf);
-        let written = self.handle.write_interrupt(self.endpoint, &self.buf, DEFAULT_TIMEOUT)?;
-        ensure!(written == self.buf.len(), "not all data written");
+        debug!("send: {:02x?}", buf);
+        let written = self
+            .get_handle()
+            .write_interrupt(self.get_endpoint(), &buf, DEFAULT_TIMEOUT)?;
+        ensure!(written == buf.len(), "not all data written");
         Ok(())
     }
 }
@@ -124,12 +65,12 @@ impl Display for Key {
 }
 
 impl Key {
-    fn to_key_id(self) -> Result<u8> {
+    fn to_key_id(self, base: u8) -> Result<u8> {
         match self {
-            Key::Button(n) if n >= 12 => Err(anyhow!("invalid key index")),
+            Key::Button(n) if n >= base => Err(anyhow!("invalid key index")),
             Key::Button(n) => Ok(n + 1),
             Key::Knob(n, _) if n >= 3 => Err(anyhow!("invalid knob index")),
-            Key::Knob(n, action) => Ok(13 + 3*n + (action as u8)),
+            Key::Knob(n, action) => Ok(base + 1 + 3 * n + (action as u8)),
         }
     }
 }
