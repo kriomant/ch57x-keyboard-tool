@@ -145,20 +145,20 @@ fn find_interface_and_endpoint(
                 intf.descriptors().format("\n")
             )
         })?;
-        ensure!(
-            intf_desc.class_code() == 0x03
-                && intf_desc.sub_class_code() == 0x00
-                && intf_desc.protocol_code() == 0x00,
-            "unexpected interface parameters: {:#?}",
-            intf_desc
-        );
 
         // Look for suitable endpoints
         if let Some(endpt_desc) = intf_desc.endpoint_descriptors().find(|ep| {
             ep.transfer_type() == TransferType::Interrupt && ep.address() == endpoint_addr
         }) {
             debug!("Found endpoint {endpt_desc:?}");
-            return Ok((iface_num, endpt_desc.address()));
+            if intf_desc.class_code() == 0x03
+                && intf_desc.sub_class_code() == 0x00
+                && intf_desc.protocol_code() == 0x00
+            {
+                return Ok((iface_num, endpt_desc.address()));
+            } else {
+                debug!("unexpected interface parameters: {:#?}", intf_desc);
+            }
         }
     }
 
