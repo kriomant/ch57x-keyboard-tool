@@ -33,7 +33,14 @@ impl Keyboard for Keyboard884x {
         match expansion {
             Macro::Keyboard(presses) => {
                 ensure!(presses.len() <= 5, "macro sequence is too long");
-                msg.push(presses.len() as u8);
+
+                // Allow single key modifier to be used in combo with other key(s)
+                if presses.len() == 1 && presses[0].code.is_none(){
+                    msg.push(0);
+                } else {
+                    msg.push(presses.len() as u8);
+                }
+
                 for Accord { modifiers, code } in presses.iter() {
                     msg.extend_from_slice(&[modifiers.as_u8(), code.map_or(0, |c| c.value())]);
                 }
