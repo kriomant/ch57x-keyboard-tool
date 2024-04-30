@@ -25,8 +25,8 @@ pub struct DevelOptions {
     #[arg(long, value_parser=parse_address)]
     pub address: Option<(u8, u8)>,
 
-    #[arg(long, default_value_t=0x4)]
-    pub endpoint_address: u8,
+    #[arg(long)]
+    pub endpoint_address: Option<u8>,
 
     #[arg(long)]
     pub interface_number: Option<u8>,

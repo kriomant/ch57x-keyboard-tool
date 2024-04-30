@@ -7,7 +7,7 @@ mod parse;
 use crate::config::Config;
 use crate::consts::PRODUCT_IDS;
 use crate::keyboard::{
-    k884x, k8880, Keyboard, KnobAction, MediaCode, Modifier, MouseAction, MouseButton,
+    k884x, k8890, Keyboard, KnobAction, MediaCode, Modifier, MouseAction, MouseButton,
     WellKnownCode,
 };
 use crate::options::{Command, LedCommand};
@@ -174,11 +174,17 @@ fn open_keyboard(options: &Options) -> Result<Box<dyn Keyboard>> {
         "only one device configuration is expected"
     );
 
+    let preferred_endpint = match id_product {
+        0x8840 | 0x8842 => k884x::Keyboard884x::preferred_endpoint(),
+        0x8890 => k8890::Keyboard8890::preferred_endpoint(),
+        _ => unreachable!("unsupported device"),
+    };
+
     // Find correct endpoint
     let (intf_num, endpt_addr) = find_interface_and_endpoint(
         &device,
         options.devel_options.interface_number,
-        options.devel_options.endpoint_address,
+        options.devel_options.endpoint_address.unwrap_or(preferred_endpint),
     )?;
 
     // Open device.
@@ -193,9 +199,9 @@ fn open_keyboard(options: &Options) -> Result<Box<dyn Keyboard>> {
             k884x::Keyboard884x::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
         }
         0x8890 => {
-            k8880::Keyboard8890::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
+            k8890::Keyboard8890::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
         }
-        _ => unreachable!("This shouldn't happen!"),
+        _ => unreachable!("unsupported device"),
     }
 }
 

@@ -1,5 +1,5 @@
 pub(crate) mod k884x;
-pub(crate) mod k8880;
+pub(crate) mod k8890;
 
 use crate::parse;
 
@@ -20,6 +20,7 @@ pub trait Keyboard {
     fn bind_key(&mut self, layer: u8, key: Key, expansion: &Macro) -> Result<()>;
     fn set_led(&mut self, n: u8) -> Result<()>;
 
+    fn preferred_endpoint() -> u8 where Self: Sized;
     fn get_handle(&self) -> &DeviceHandle<Context>;
     fn get_endpoint(&self) -> u8;
 

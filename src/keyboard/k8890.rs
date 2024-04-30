@@ -73,6 +73,10 @@ impl Keyboard for Keyboard8890 {
     fn get_endpoint(&self) -> u8 {
         self.endpoint
     }
+
+    fn preferred_endpoint() -> u8 {
+        0x02
+    }
 }
 
 impl Keyboard8890 {
