@@ -258,12 +258,12 @@ python3 -m mouse
 
 ## Supported macro keyboards
 
-* Product ID: 0x8890
+* Product ID: 0x8890, 0x8840
     * Vendor ID: 0x1189  (Trisat Industrial Co., Ltd.)
     * [amazon.co.jp/dp/B0CF5L8HP3](https://www.amazon.co.jp/dp/B0CF5L8HP3)
 
 ### Photos of supported keyboards
 
-| 3x2 with 1 knob                       | 3x1 with 1 knob                       | 3×3 with 2 knobs                        |
-| ------------------------------------- | ------------------------------------- | --------------------------------------- |
-| ![keyboard-6-1](doc/keyboard-6-1.png) | ![keyboard-3-1](doc/keyboard-3-1.jpg) | ![keyboard-12-2](doc/keyboard-12-2.png) |
+| 3x2 with 1 knob                       | 3x2 with 1 knob                        | 3x1 with 1 knob                       | 3×3 with 2 knobs                        |
+|---------------------------------------|----------------------------------------|---------------------------------------|-----------------------------------------|
+| ![keyboard-6-1](doc/keyboard-6-1.png) | ![keyboard-6-1](doc/keyboard-6-1a.png) | ![keyboard-3-1](doc/keyboard-3-1.jpg) | ![keyboard-12-2](doc/keyboard-12-2.png) |
