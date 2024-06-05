@@ -32,7 +32,7 @@ impl Keyboard for Keyboard884x {
 
         match expansion {
             Macro::Keyboard(presses) => {
-                ensure!(presses.len() <= 5, "macro sequence is too long");
+                ensure!(presses.len() <= 18, "macro sequence is too long");
 
                 // Allow single key modifier to be used in combo with other key(s)
                 if presses.len() == 1 && presses[0].code.is_none(){
