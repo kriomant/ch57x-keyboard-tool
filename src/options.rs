@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::num::ParseIntError;
 
 use clap::{Args, Parser, Subcommand};
@@ -54,10 +55,17 @@ pub enum Command {
     Validate,
 
     /// Upload key mappings from stdin to device
-    Upload,
+    Upload(UploadCommand),
 
     /// Select LED backlight mode
     Led(LedCommand),
+}
+
+#[derive(Parser)]
+pub struct UploadCommand {
+    /// Path to config file to upload.
+    /// If not given, read from stdin.
+    pub config_path: Option<OsString>,
 }
 
 #[derive(Parser)]

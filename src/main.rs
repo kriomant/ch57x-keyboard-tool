@@ -4,6 +4,8 @@ mod keyboard;
 mod options;
 mod parse;
 
+use std::io::{BufReader, Read, StdinLock};
+
 use crate::config::Config;
 use crate::consts::PRODUCT_IDS;
 use crate::keyboard::{
@@ -17,6 +19,7 @@ use anyhow::{anyhow, ensure, Result};
 use indoc::indoc;
 use itertools::Itertools;
 use log::debug;
+use options::UploadCommand;
 use rusb::{Context, Device, DeviceDescriptor, TransferType};
 
 use anyhow::Context as _;
@@ -68,9 +71,22 @@ fn main() -> Result<()> {
             println!("config is valid 👌")
         }
 
-        Command::Upload => {
+        Command::Upload(UploadCommand { ref config_path }) => {
             // Load and validate mapping.
-            let config: Config = serde_yaml::from_reader(std::io::stdin().lock())
+            let mut stdin_reader: BufReader<StdinLock<'static>>;
+            let mut file_reader: BufReader<std::fs::File>;
+            let reader: &mut dyn Read = match config_path {
+                Some(path) => {
+                    let file = std::fs::File::open(&path).context("open config file")?;
+                    file_reader = BufReader::new(file);
+                    &mut file_reader
+                }
+                None => {
+                    stdin_reader = BufReader::new(std::io::stdin().lock());
+                    &mut stdin_reader
+                }
+            };
+            let config: Config = serde_yaml::from_reader(reader)
                 .context("load mapping config")?;
             let layers = config.render().context("render mapping config")?;
 
