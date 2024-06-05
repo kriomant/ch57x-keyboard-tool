@@ -267,3 +267,5 @@ python3 -m mouse
 | 3x2 with 1 knob                       | 3x2 with 1 knob                        | 3x1 with 1 knob                       | 3×3 with 2 knobs                        |
 |---------------------------------------|----------------------------------------|---------------------------------------|-----------------------------------------|
 | ![keyboard-6-1](doc/keyboard-6-1.png) | ![keyboard-6-1](doc/keyboard-6-1a.png) | ![keyboard-3-1](doc/keyboard-3-1.jpg) | ![keyboard-12-2](doc/keyboard-12-2.png) |
+| 4x3 with 3 knobs                      |
+| ![keyboard-4-3](doc/keyboard-4-3.png) |
