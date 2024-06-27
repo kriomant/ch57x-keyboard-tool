@@ -16,7 +16,7 @@ impl Keyboard for Keyboard8890 {
         debug!("bind {} on layer {} to {}", key, layer, expansion);
 
         // Start key binding
-        self.send(&[0xfe, layer+1, 0x1, 0x1, 0, 0, 0, 0])?;
+        self.send(&[0x03, 0xfe, layer+1, 0x1, 0x1, 0, 0, 0, 0])?;
 
         match expansion {
             Macro::Keyboard(presses) => {
@@ -25,7 +25,7 @@ impl Keyboard for Keyboard8890 {
                 let iter = presses.iter().map(|accord| (accord.modifiers.as_u8(), accord.code.map_or(0, |c| c.value())));
                 let (len, items) = (presses.len() as u8, Box::new(std::iter::once((0, 0)).chain(iter)));
                 for (i, (modifiers, code)) in items.enumerate() {
-                    self.send(&[
+                    self.send(&[0x03, 
                         key.to_key_id(12)?,
                         ((layer+1) << 4) | expansion.kind(),
                         len,
@@ -39,30 +39,30 @@ impl Keyboard for Keyboard8890 {
             }
             Macro::Media(code) => {
                 let [low, high] = (*code as u16).to_le_bytes();
-                self.send(&[key.to_key_id(12)?, ((layer+1) << 4) | 0x02, low, high, 0, 0, 0, 0])?;
+                self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x02, low, high, 0, 0, 0, 0])?;
             }
             Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
                 ensure!(!buttons.is_empty(), "buttons must be given for click macro");
-                self.send(&[key.to_key_id(12)?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0])?;
+                self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0])?;
             }
             Macro::Mouse(MouseEvent(MouseAction::WheelUp, modifier)) => {
-                self.send(&[key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0x01, modifier.map_or(0, |m| m as u8), 0])?;
+                self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0x01, modifier.map_or(0, |m| m as u8), 0])?;
             }
             Macro::Mouse(MouseEvent(MouseAction::WheelDown, modifier)) => {
-                self.send(&[key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0xff, modifier.map_or(0, |m| m as u8), 0])?;
+                self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0xff, modifier.map_or(0, |m| m as u8), 0])?;
             }
         };
 
         // Finish key binding
-        self.send(&[0xaa, 0xaa, 0, 0, 0, 0, 0, 0])?;
+        self.send(&[0x03, 0xaa, 0xaa, 0, 0, 0, 0, 0, 0])?;
 
         Ok(())
     }
 
     fn set_led(&mut self, n: u8) -> Result<()> {
-        self.send(&[0xa1, 0x01, 0, 0, 0, 0, 0, 0])?;
-        self.send(&[0xb0, 0x18, n, 0, 0, 0, 0, 0])?;
-        self.send(&[0xaa, 0xa1, 0, 0, 0, 0, 0, 0])?;
+        self.send(&[0x03, 0xa1, 0x01, 0, 0, 0, 0, 0, 0])?;
+        self.send(&[0x03, 0xb0, 0x18, n, 0, 0, 0, 0, 0])?;
+        self.send(&[0x03, 0xaa, 0xa1, 0, 0, 0, 0, 0, 0])?;
         Ok(())
     }
 
