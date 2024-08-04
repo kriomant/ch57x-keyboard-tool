@@ -18,7 +18,7 @@ use crate::{keyboard::Key, options::Options};
 use anyhow::{anyhow, ensure, Result};
 use indoc::indoc;
 use itertools::Itertools;
-use log::debug;
+use log::{debug, info};
 use options::UploadCommand;
 use rusb::{Context, Device, DeviceDescriptor, TransferType};
 
@@ -184,6 +184,7 @@ fn find_interface_and_endpoint(
 fn open_keyboard(options: &Options) -> Result<Box<dyn Keyboard>> {
     // Find USB device based on the product id
     let (device, desc, id_product) = find_device(options).context("find USB device")?;
+    info!("found device with product ID {:04x}", id_product);
 
     ensure!(
         desc.num_configurations() == 1,
