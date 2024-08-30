@@ -186,9 +186,8 @@ However, if your keyboard does not support layer switching, just keep a single l
 
 ### Custom keyboard layouts
 
-If you use a custom keyboard layout, like [Dvorak](https://en.wikipedia.org/wiki/Dvorak_keyboard_layout), you will need to write the keyboard key's [scancode](https://en.wikipedia.org/wiki/Scancode) in the configuration file (not the character that is produced).
-
-So, use the QWERTY letter of the keyboard key you want to press.
+Note that you specify key to emulate press for, not character which is produced by pressing it.
+So if you use a custom keyboard layout, like [Dvorak](https://en.wikipedia.org/wiki/Dvorak_keyboard_layout), you have to see how required key is labelled in QWERTY layout.
 
 ### 3x1 keys + 1 knob keyboard limitations
 

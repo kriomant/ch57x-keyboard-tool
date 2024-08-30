@@ -32,7 +32,9 @@ layers:
       # like 'b', 'ctrl-alt-a' or 'win-rctrl-backspace'.
       # It can also be just modifiers without a key: 'ctrl-alt'.
       # You may combine up to 5 chords into a sequence using commas: 'ctrl-v,ctrl-c'.
-      # Arbitrary scan codes (decimal) may be given like this: '<101>'.
+      # Arbitrary HID usage codes (decimal) may be given like this: '<101>'.
+      # See https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf (section 10)
+      # for HID usage code list.
       - ["a", "ctrl-a", "alt-shift", "alt-ctrl,ctrl-b"]
       - ["e", "f", "g", "h"]
       - ["<100>", "j", "k", "l"]
