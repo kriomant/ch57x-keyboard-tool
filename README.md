@@ -57,13 +57,9 @@ This utility has been reported to work with:
 * 3x2 with 1 knob
 * 3x1 with 1 knob with [limitations](#3x1-keys--1-knob-keyboard-limitations)
 
-All these keyboards share the same vendor/product IDs: `1189:8890` (hexadecimal).
-It is possible to override the used vendor/product ID, but it is usually unnecessary.
-Use this utility on similar-looking keyboard with a different vendor/product ID.
+Keyboard with following vendor/product IDs are supported: `1189:8890`, `1189:8840`, `1189:8842` (hexadecimal).
 
 For more details, refer to the [Supported Macro Keyboards](#supported-macro-keyboards) section.
-
-**⚠️ The ability to override the vendor/product ID does not mean that you can use this utility to program arbitrary keyboards!**
 
 ## Installation
 
@@ -73,7 +69,7 @@ There are two ways to download the keyboard utility: getting a prebuilt release 
 
 Simply download the [latest release from GitHub](https://github.com/kriomant/ch57x-keyboard-tool/releases).
 
-### Build it yourself
+### Or build it yourself
 
 1. Install the *cargo* utility using [rustup](https://rustup.rs/):
     * Brew: `brew install rustup-init && rustup-init`
@@ -81,57 +77,46 @@ Simply download the [latest release from GitHub](https://github.com/kriomant/ch5
     * Windows: Download and run [rustup-init.exe](https://win.rustup.rs/)
 2. Execute `cargo install ch57x-keyboard-tool`.
 
-## Usage
+### If you are on Windows
 
-**Note**: Windows users need to install [USBDK](https://github.com/daynix/UsbDk/releases) first.
+Install [USBDK](https://github.com/daynix/UsbDk/releases).
+
+## Usage
 
 1. Connect the keyboard to the computer with a USB cable.
 2. Create a configuration file based on the provided [example-mapping.yaml](example-mapping.yaml).
-    * The example config file has extensive documentation inside.
 3. Validate the configuration file.
 4. Upload the configuration to the keyboard.
 5. Done! 🎉
 
-### Commands and options
+### Create configuration file
+
+Edit existing `example-mapping.yaml` or (better) save modified copy under different name.
+
+Example config file has extensive documentation inside.
+
+You may also get list of supported key names using:
 
 ```shell
-ch57x-keyboard-tool [OPTIONS] <COMMAND>
+./ch57x-keyboard-tool show-keys
 ```
-
-Commands and their descriptions:
-
-| Command                | Description                                               |
-| ---------------------- | --------------------------------------------------------- |
-| `show-keys`            | Display a list of all supported keys and modifiers        |
-| `validate`             | Validate key mappings config from stdin                   |
-| `upload`               | Upload key mappings from stdin to the device              |
-| `led`                  | Select LED backlight mode                                 |
-| `help`, `-h`, `--help` | Print this message or the help of the given subcommand(s) |
-
-Options and their descriptions:
-
-| Option                      | Description                 | Notes            |
-| --------------------------- | --------------------------- | ---------------- |
-| `--vendor-id <VENDOR_ID>`   | Vendor ID of the keyboard   | Default: `4489`  |
-| `--product-id <PRODUCT_ID>` | Product ID of the keyboard  | Default: `34960` |
-| `--address <ADDRESS>`       | Address of the keyboard     |                  |
 
 ### Validate the config file
 
 ```shell
-./ch57x-keyboard-tool validate < your-config.yaml
+./ch57x-keyboard-tool validate your-config.yaml
 ```
 
 ### Upload the config to the keyboard
 
 ```shell
-./ch57x-keyboard-tool upload < your-config.yaml
+./ch57x-keyboard-tool upload your-config.yaml
 ```
 
 Use 'sudo' if you get 'Access denied (insufficient permissions)':
 
 ```shell
-sudo ./ch57x-keyboard-tool upload < your-config.yaml
+sudo ./ch57x-keyboard-tool upload your-config.yaml
 ```
 
 ### Change LED configuration
@@ -204,6 +189,32 @@ These keys have aliases for both platforms, you may use them interchangeably.
 | ----------------- | --------- | ----------- |
 | Command / Windows | `cmd`     | `win`       |
 | Option / Alt      | `opt`     | `alt`       |
+
+### Commands and options
+
+```shell
+ch57x-keyboard-tool [OPTIONS] <COMMAND>
+```
+
+Commands and their descriptions:
+
+| Command                | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `show-keys`            | Display a list of all supported keys and modifiers        |
+| `validate`             | Validate key mappings config from stdin                   |
+| `upload`               | Upload key mappings from stdin to the device              |
+| `led`                  | Select LED backlight mode                                 |
+| `help`, `-h`, `--help` | Print this message or the help of the given subcommand(s) |
+
+Advanced options, you don't have to use this normally:
+
+| Option                      | Description                 | Notes            |
+| --------------------------- | --------------------------- | ---------------- |
+| `--vendor-id <VENDOR_ID>`   | Vendor ID of the keyboard   | Default: `4489`  |
+| `--product-id <PRODUCT_ID>` | Product ID of the keyboard  | Default: `34960` |
+| `--address <ADDRESS>`       | Address of the keyboard     |                  |
+
+**⚠️ The ability to override the vendor/product ID does not mean that you can use this utility to program arbitrary keyboards!**
 
 ## Diagnostics
 

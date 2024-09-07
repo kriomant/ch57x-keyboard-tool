@@ -52,17 +52,17 @@ pub enum Command {
     ShowKeys,
 
     /// Validate key mappings config on stdin
-    Validate,
+    Validate(ConfigParams),
 
     /// Upload key mappings from stdin to device
-    Upload(UploadCommand),
+    Upload(ConfigParams),
 
     /// Select LED backlight mode
     Led(LedCommand),
 }
 
 #[derive(Parser)]
-pub struct UploadCommand {
+pub struct ConfigParams {
     /// Path to config file to upload.
     /// If not given, read from stdin.
     pub config_path: Option<OsString>,

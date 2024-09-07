@@ -19,7 +19,7 @@ use anyhow::{anyhow, ensure, Result};
 use indoc::indoc;
 use itertools::Itertools;
 use log::debug;
-use options::UploadCommand;
+use options::{ConfigParams, DevelOptions};
 use rusb::{Context, Device, DeviceDescriptor, TransferType};
 
 use anyhow::Context as _;
@@ -63,34 +63,19 @@ fn main() -> Result<()> {
             }
         }
 
-        Command::Validate => {
-            // Load and validate mapping.
-            let config: Config = serde_yaml::from_reader(std::io::stdin().lock())
+        Command::Validate(params) => {
+            let config: Config = load_config(&params)
                 .context("load mapping config")?;
             let _ = config.render().context("render mappings config")?;
             println!("config is valid 👌")
         }
 
-        Command::Upload(UploadCommand { ref config_path }) => {
-            // Load and validate mapping.
-            let mut stdin_reader: BufReader<StdinLock<'static>>;
-            let mut file_reader: BufReader<std::fs::File>;
-            let reader: &mut dyn Read = match config_path {
-                Some(path) => {
-                    let file = std::fs::File::open(&path).context("open config file")?;
-                    file_reader = BufReader::new(file);
-                    &mut file_reader
-                }
-                None => {
-                    stdin_reader = BufReader::new(std::io::stdin().lock());
-                    &mut stdin_reader
-                }
-            };
-            let config: Config = serde_yaml::from_reader(reader)
+        Command::Upload(params) => {
+            let config: Config = load_config(&params)
                 .context("load mapping config")?;
             let layers = config.render().context("render mapping config")?;
 
-            let mut keyboard = open_keyboard(&options)?;
+            let mut keyboard = open_keyboard(&options.devel_options)?;
 
             // Apply keyboard mapping.
             for (layer_idx, layer) in layers.iter().enumerate() {
@@ -116,7 +101,7 @@ fn main() -> Result<()> {
         }
 
         Command::Led(LedCommand { index }) => {
-            let mut keyboard = open_keyboard(&options)?;
+            let mut keyboard = open_keyboard(&options.devel_options)?;
             keyboard.set_led(index)?;
         }
     }
@@ -181,9 +166,9 @@ fn find_interface_and_endpoint(
     Err(anyhow!("No valid interface/endpoint combination found!"))
 }
 
-fn open_keyboard(options: &Options) -> Result<Box<dyn Keyboard>> {
+fn open_keyboard(devel_options: &DevelOptions) -> Result<Box<dyn Keyboard>> {
     // Find USB device based on the product id
-    let (device, desc, id_product) = find_device(options).context("find USB device")?;
+    let (device, desc, id_product) = find_device(devel_options).context("find USB device")?;
 
     ensure!(
         desc.num_configurations() == 1,
@@ -199,8 +184,8 @@ fn open_keyboard(options: &Options) -> Result<Box<dyn Keyboard>> {
     // Find correct endpoint
     let (intf_num, endpt_addr) = find_interface_and_endpoint(
         &device,
-        options.devel_options.interface_number,
-        options.devel_options.endpoint_address.unwrap_or(preferred_endpint),
+        devel_options.interface_number,
+        devel_options.endpoint_address.unwrap_or(preferred_endpint),
     )?;
 
     // Open device.
@@ -221,7 +206,7 @@ fn open_keyboard(options: &Options) -> Result<Box<dyn Keyboard>> {
     }
 }
 
-fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor, u16)> {
+fn find_device(devel_options: &DevelOptions) -> Result<(Device<Context>, DeviceDescriptor, u16)> {
     let options = vec![
         #[cfg(windows)] rusb::UsbOption::use_usbdk(),
     ];
@@ -238,8 +223,8 @@ fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor, u16
             desc.product_id()
         );
         let product_id = desc.product_id();
-        if desc.vendor_id() == opts.devel_options.vendor_id
-            && match opts.devel_options.product_id {
+        if desc.vendor_id() == devel_options.vendor_id
+            && match devel_options.product_id {
                 Some(prod_id) => prod_id == product_id,
                 None => PRODUCT_IDS.contains(&product_id),
             }
@@ -275,7 +260,7 @@ fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor, u16
                 let serial = handle.read_serial_number_string(*lang, &desc, DEFAULT_TIMEOUT)
                     .context("read serial")?;*/
                 let address = (device.bus_number(), device.address());
-                if opts.devel_options.address.as_ref() == Some(&address) {
+                if devel_options.address.as_ref() == Some(&address) {
                     return Ok((device, desc, product_id))
                 }
 
@@ -292,4 +277,22 @@ fn find_device(opts: &Options) -> Result<(Device<Context>, DeviceDescriptor, u16
             "}, addresses.iter().map(|(bus, addr)| format!("{bus}:{addr}")).join("\n")))
         }
     }
+}
+
+fn load_config(params: &ConfigParams) -> Result<Config> {
+    // Load and validate mapping.
+    let mut stdin_reader: BufReader<StdinLock<'static>>;
+    let mut file_reader: BufReader<std::fs::File>;
+    let reader: &mut dyn Read = match &params.config_path {
+        Some(path) => {
+            let file = std::fs::File::open(path).context("open config file")?;
+            file_reader = BufReader::new(file);
+            &mut file_reader
+        }
+        None => {
+            stdin_reader = BufReader::new(std::io::stdin().lock());
+            &mut stdin_reader
+        }
+    };
+    Ok(serde_yaml::from_reader(reader)?)
 }
