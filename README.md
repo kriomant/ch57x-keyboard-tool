@@ -162,6 +162,16 @@ I don't have detailed datasheet for these keyboards. So I can say whether someth
 
 However, doing it requires either exact keyboard model in my hands or you to performa reverse engeneering.
 
+### Why do the media controls always trigger in my browser and not in my music app?
+
+This is a common issue with media keys and browser having a higher priority on those keys than the music app, for example Spotify. To fix this, you can switch off a certain flag in your browser. 
+
+In Chrome, go to `chrome://flags/#hardware-media-key-handling` and disable the flag. This should work on any Chromium-based browser like Edge, Brave or Opera.
+
+In Firefox, go to `about:config` and set `media.hardwaremediakeys.enabled` to `false`.
+
+This should now allow your music app to receive the media key presses.
+
 ## Notes
 
 ### Number of layers
