@@ -104,19 +104,19 @@ You may also get list of supported key names using:
 ### Validate the config file
 
 ```shell
-./ch57x-keyboard-tool validate your-config.yaml
+./ch57x-keyboard-tool validate < your-config.yaml
 ```
 
 ### Upload the config to the keyboard
 
 ```shell
-./ch57x-keyboard-tool upload your-config.yaml
+./ch57x-keyboard-tool upload < your-config.yaml
 ```
 
 Use 'sudo' if you get 'Access denied (insufficient permissions)':
 
 ```shell
-sudo ./ch57x-keyboard-tool upload your-config.yaml
+sudo ./ch57x-keyboard-tool upload < your-config.yaml
 ```
 
 ### Change LED configuration
