@@ -275,8 +275,11 @@ python3 -m mouse
 
 ### Photos of supported keyboards
 
-| 3x2 with 1 knob                       | 3x2 with 1 knob                        | 3x1 with 1 knob                       | 3×3 with 2 knobs                        |
-|---------------------------------------|----------------------------------------|---------------------------------------|-----------------------------------------|
-| ![keyboard-6-1](doc/keyboard-6-1.png) | ![keyboard-6-1](doc/keyboard-6-1a.png) | ![keyboard-3-1](doc/keyboard-3-1.jpg) | ![keyboard-12-2](doc/keyboard-12-2.png) |
-| 4x3 with 3 knobs                      | 4×1 without knobs
-| ![keyboard-4-3](doc/keyboard-4-3.png) | ![keyboard-4-1](doc/keyboard-4-1.png)
+| Kind              | Photo
+|-------------------|----------------------------------------
+| 3x2 with 1 knob   | ![keyboard-6-1](doc/keyboard-6-1.png)   
+| 3x2 with 1 knob   | ![keyboard-6-1](doc/keyboard-6-1a.png) 
+| 3x1 with 1 knob   | ![keyboard-3-1](doc/keyboard-3-1.jpg)
+| 3×3 with 2 knobs  | ![keyboard-12-2](doc/keyboard-12-2.png) 
+| 4x3 with 3 knobs  | ![keyboard-4-3](doc/keyboard-4-3.png)  
+| 4×1 without knobs | ![keyboard-4-1](doc/keyboard-4-1.png)
