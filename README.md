@@ -56,6 +56,7 @@ This utility has been reported to work with:
 * 3×3 with 2 knobs
 * 3x2 with 1 knob
 * 3x1 with 1 knob with [limitations](#3x1-keys--1-knob-keyboard-limitations)
+* 4x1 without knobs
 
 Keyboard with following vendor/product IDs are supported: `1189:8890`, `1189:8840`, `1189:8842` (hexadecimal).
 
@@ -277,5 +278,5 @@ python3 -m mouse
 | 3x2 with 1 knob                       | 3x2 with 1 knob                        | 3x1 with 1 knob                       | 3×3 with 2 knobs                        |
 |---------------------------------------|----------------------------------------|---------------------------------------|-----------------------------------------|
 | ![keyboard-6-1](doc/keyboard-6-1.png) | ![keyboard-6-1](doc/keyboard-6-1a.png) | ![keyboard-3-1](doc/keyboard-3-1.jpg) | ![keyboard-12-2](doc/keyboard-12-2.png) |
-| 4x3 with 3 knobs                      |
-| ![keyboard-4-3](doc/keyboard-4-3.png) |
+| 4x3 with 3 knobs                      | 4×1 without knobs
+| ![keyboard-4-3](doc/keyboard-4-3.png) | ![keyboard-4-1](doc/keyboard-4-1.png)
