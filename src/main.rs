@@ -176,7 +176,7 @@ fn open_keyboard(devel_options: &DevelOptions) -> Result<Box<dyn Keyboard>> {
     );
 
     let preferred_endpint = match id_product {
-        0x8840 | 0x8842 => k884x::Keyboard884x::preferred_endpoint(),
+        0x8840 | 0x8842 | 0x8850 => k884x::Keyboard884x::preferred_endpoint(),
         0x8890 => k8890::Keyboard8890::preferred_endpoint(),
         _ => unreachable!("unsupported device"),
     };
@@ -196,7 +196,7 @@ fn open_keyboard(devel_options: &DevelOptions) -> Result<Box<dyn Keyboard>> {
         .context("claim interface")?;
 
     match id_product {
-        0x8840 | 0x8842 => {
+        0x8840 | 0x8842 | 0x8850 => {
             k884x::Keyboard884x::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
         }
         0x8890 => {
