@@ -63,6 +63,9 @@ impl Keyboard for Keyboard884x {
 
         self.send(&msg)?;
 
+        // Finish key binding
+        self.send(&[0x03, 0xfd, 0xfe, 0xff])?;
+
         Ok(())
     }
 
