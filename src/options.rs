@@ -15,7 +15,7 @@ pub struct Options {
 }
 
 #[derive(Args)]
-#[clap(next_help_heading = "Internal options (use with caution)")]
+#[clap(version, next_help_heading = "Internal options (use with caution)")]
 pub struct DevelOptions {
     #[arg(long, default_value_t=VENDOR_ID, value_parser=hex_or_decimal)]
     pub vendor_id: u16,
