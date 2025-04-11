@@ -11,6 +11,8 @@
     * [Build it yourself](#build-it-yourself)
 * [Usage](#usage)
     * [Commands and options](#commands-and-options)
+    * [Create configuration file](#create-configuration-file)
+    * [All possible keys](#all-possible-keys)
     * [Validate the config file](#validate-the-config-file)
     * [Upload the config to the keyboard](#upload-the-config-to-the-keyboard)
     * [Change LED configuration](#change-led-configuration)
@@ -18,6 +20,7 @@
 * [FAQ](#faq)
     * [How to do … on key press?](#how-to-do--on-key-press)
     * [Can you implement … feature?](#can-you-implement--feature)
+    * [Why do the media controls always trigger in my browser and not in my music app?](#why-do-the-media-controls-always-trigger-in-my-browser-and-not-in-my-music-app)
 * [Notes](#notes)
     * [Number of layers](#number-of-layers)
     * [Custom keyboard layouts](#custom-keyboard-layouts)
@@ -31,6 +34,7 @@
     * [Monitoring generated keyboard and mouse events](#monitoring-generated-keyboard-and-mouse-events)
 * [Supported macro keyboards](#supported-macro-keyboards)
     * [Photos of supported keyboards](#photos-of-supported-keyboards)
+* [All possible keys](#all-possible-keys)
 
 ## What is this?
 
@@ -90,6 +94,22 @@ Install [USBDK](https://github.com/daynix/UsbDk/releases).
 4. Upload the configuration to the keyboard.
 5. Done! 🎉
 
+### Commands and options
+
+```shell
+ch57x-keyboard-tool [OPTIONS] <COMMAND>
+```
+
+Commands and their descriptions:
+
+| Command                | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `show-keys`            | Display a list of all supported keys and modifiers        |
+| `validate`             | Validate key mappings config from stdin                   |
+| `upload`               | Upload key mappings from stdin to the device              |
+| `led`                  | Select LED backlight mode                                 |
+| `help`, `-h`, `--help` | Print this message or the help of the given subcommand(s) |
+
 ### Create configuration file
 
 Edit existing `example-mapping.yaml` or (better) save modified copy under different name.
@@ -101,6 +121,44 @@ You may also get list of supported key names using:
 ```shell
 ./ch57x-keyboard-tool show-keys
 ```
+
+### All possible keys
+
+Each entry is either a sequence of chords or a single chord, or a mouse event.
+
+You can combine keys into chords by joining them with a dash `-`. Example: `ctrl-alt-del` or `ctrl-shift-7`. 
+
+You can also combine up to five chords into a sequence by joining them with a comma `,`. Example: `ctrl-a,ctrl-c`. 
+
+Arbitrary HID usage codes (decimal) may be given like this: `<101>`. See [section 10](https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf) for the HID usage code list.
+
+Mouse events are clicks (`click/lclick`, `rclick`, `mclick`) or wheel events (`wheelup`, `wheeldown`) with one optional modifier, only `ctrl`, `shift` and `alt` are supported (`ctrl-wheeldown`). Clicks may combine several buttons, like this: `click+rclick`.
+
+Media keys cannot be combined with normal keys and modifiers.
+
+- **Modifiers**: `ctrl`, (`alt` or `opt`), (`cmd` or `win`), `shift`, `rctrl`, (`rcmd` or `rwin`), (`ropt` or `ralt`), `rshift`
+
+- **Media keys**: `next`, (`prev` or `previous`), `stop`, `play`, `pause`, `mute`, `volumeup`, `volumedown`, `favorites`, `calculator`, `screenlock`
+
+- **Letters**: All the letters of the alphabet `a` through `z`
+
+- **Numbers**: All the numbers `0` through `9` and all the numbers `numpad0` through `numpad9`
+
+- **Function keys**: `f1` through `f24`
+
+- **Numpad**: `numlock`, `numpadslash`, `numpadasterisk`, `numpadminus`, `numpadplus`, `numpadenter`, `numpaddot`, `numpadequal`
+
+- **Navigation keys**: `insert`, `home`, `pageup`, `delete`, `end`, `pagedown`, `right`, `left`, `down`, `up`
+
+- **Editing and formatting**: `backspace`, `tab`, `space`, `enter`, `escape`, `capslock`, `printscreen`, `scrolllock`, `pause`
+
+- **Special characters**: `minus`, `equal`, `leftbracket`, `rightbracket`, `backslash`, `nonusbackslash`, `nonushash`
+
+- **Punctuation**: `semicolon`, `quote`, `grave`, `comma`, `dot`, `slash`
+
+- **System and application**: `application`, `power`
+
+- **Mouse**: (`click` or `lclick`), `mclick`, `rclick`, `wheelup`, `wheeldown`
 
 ### Validate the config file
 
@@ -163,6 +221,16 @@ I don't have detailed datasheet for these keyboards. So I can say whether someth
 
 However, doing it requires either exact keyboard model in my hands or you to performa reverse engeneering.
 
+### Why do the media controls always trigger in my browser and not in my music app?
+
+This is a common issue with media keys and browser having a higher priority on those keys than the music app, for example Spotify. To fix this, you can switch off a certain flag in your browser. 
+
+In Chrome, go to `chrome://flags/#hardware-media-key-handling` and disable the flag. This should work on any Chromium-based browser like Edge, Brave or Opera.
+
+In Firefox, go to `about:config` and set `media.hardwaremediakeys.enabled` to `false`.
+
+This should now allow your music app to receive the media key presses.
+
 ## Notes
 
 ### Number of layers
@@ -191,21 +259,7 @@ These keys have aliases for both platforms, you may use them interchangeably.
 | Command / Windows | `cmd`     | `win`       |
 | Option / Alt      | `opt`     | `alt`       |
 
-### Commands and options
-
-```shell
-ch57x-keyboard-tool [OPTIONS] <COMMAND>
-```
-
-Commands and their descriptions:
-
-| Command                | Description                                               |
-| ---------------------- | --------------------------------------------------------- |
-| `show-keys`            | Display a list of all supported keys and modifiers        |
-| `validate`             | Validate key mappings config from stdin                   |
-| `upload`               | Upload key mappings from stdin to the device              |
-| `led`                  | Select LED backlight mode                                 |
-| `help`, `-h`, `--help` | Print this message or the help of the given subcommand(s) |
+### Advanced options
 
 Advanced options, you don't have to use this normally:
 
