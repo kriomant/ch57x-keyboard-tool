@@ -74,6 +74,7 @@ dependencies = [
  "itertools",
  "log",
  "nom",
+ "once_cell",
  "rusb",
  "serde",
  "serde_with",

@@ -143,7 +143,20 @@ impl FromStr for Code {
     type Err = nom::error::Error<String>;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        parse::from_str(parse::code, s)
+        match parse::from_str(parse::accord, s) {
+            Ok(accord) => {
+                if accord.modifiers.is_empty() && accord.code.is_some() {
+                    Ok(accord.code.unwrap()) // Safe unwrap due to check
+                } else {
+                    // String was a valid accord, but not a simple Code (e.g., had modifiers or was only a modifier)
+                    Err(nom::error::Error::new(
+                        s.to_string(), // The input string that caused the error
+                        nom::error::ErrorKind::Verify, // A generic error kind
+                    ))
+                }
+            }
+            Err(e) => Err(e), // Propagate parsing errors for accord
+        }
     }
 }
 
