@@ -46,7 +46,7 @@ Such macro keyboards are popular on AliExpress, and sellers often include softwa
 
 There are several modifications of such keyboards with different numbers of buttons and knobs (see the [photos of supported keyboards](#photos-of-supported-keyboards)) and with/without Bluetooth.
 
-Both wired and wireless keyboards are supported.  
+Both wired and wireless keyboards are supported.
 ⚠️ However, the keyboard must be connected to the computer with a USB cable when programming.
 
 ### Supported keyboards
@@ -114,10 +114,25 @@ You may also get list of supported key names using:
 ./ch57x-keyboard-tool upload your-config.yaml
 ```
 
+### Permissions on Linux
+
 Use 'sudo' if you get 'Access denied (insufficient permissions)':
 
 ```shell
 sudo ./ch57x-keyboard-tool upload your-config.yaml
+```
+
+Alternatively, you may configure *udev* to give all users permission to program keyboard:
+
+Create file */etc/udev/rules.d/50-usb-macrokeyboard.rules* with content:
+```
+SUBSYSTEM=="usb", ATTR{idVendor}=="1189", ATTR{idProduct}=="8890", MODE="0666"
+```
+
+Reload udev configuration
+```
+sudo udevadm control --reload
+sudo udevadm trigger
 ```
 
 ### Change LED configuration
@@ -146,7 +161,7 @@ Get-Content your-config.yaml | ./ch57x-keyboard-tool validate
 
 A common question/request is about automation, such as "How to run a script?", "emulate several keys", or "how to trigger an action with a key press?"
 
-This tool does just one job: **writes your key bindings into the keyboard** and then exits.  
+This tool does just one job: **writes your key bindings into the keyboard** and then exits.
 It does not listen for key presses.
 Automation based on key presses is not within the scope of this utility tool.
 
@@ -183,7 +198,7 @@ So, you can use: `ctrl-alt-del,1,2`, but not `ctrl-alt-del,alt-1,2`.
 
 ### macOS vs Windows keyboard keys
 
-A friendly reminder that some keys have different names on macOS and Windows.  
+A friendly reminder that some keys have different names on macOS and Windows.
 These keys have aliases for both platforms, you may use them interchangeably.
 
 | Key Name          | macOS Key | Windows Key |
@@ -277,9 +292,9 @@ python3 -m mouse
 
 | Kind              | Photo
 |-------------------|----------------------------------------
-| 3x2 with 1 knob   | ![keyboard-6-1](doc/keyboard-6-1.png)   
-| 3x2 with 1 knob   | ![keyboard-6-1](doc/keyboard-6-1a.png) 
+| 3x2 with 1 knob   | ![keyboard-6-1](doc/keyboard-6-1.png)
+| 3x2 with 1 knob   | ![keyboard-6-1](doc/keyboard-6-1a.png)
 | 3x1 with 1 knob   | ![keyboard-3-1](doc/keyboard-3-1.jpg)
-| 3×3 with 2 knobs  | ![keyboard-12-2](doc/keyboard-12-2.png) 
-| 4x3 with 3 knobs  | ![keyboard-4-3](doc/keyboard-4-3.png)  
+| 3×3 with 2 knobs  | ![keyboard-12-2](doc/keyboard-12-2.png)
+| 4x3 with 3 knobs  | ![keyboard-4-3](doc/keyboard-4-3.png)
 | 4×1 without knobs | ![keyboard-4-1](doc/keyboard-4-1.png)
