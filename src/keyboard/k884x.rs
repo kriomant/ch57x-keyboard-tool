@@ -1,8 +1,9 @@
-use anyhow::{bail, ensure, Result};
-use log::debug;
+use anyhow::{ensure, Result};
+use log::{debug};
+use num::ToPrimitive;
 use rusb::{Context, DeviceHandle};
 
-use crate::keyboard::Accord;
+use crate::keyboard::{Accord, LedColor};
 
 use super::{Key, Keyboard, Macro, MouseAction, MouseEvent};
 
@@ -34,15 +35,21 @@ impl Keyboard for Keyboard884x {
             Macro::Keyboard(presses) => {
                 ensure!(presses.len() <= 18, "macro sequence is too long");
 
-                // Allow single key modifier to be used in combo with other key(s)
-                if presses.len() == 1 && presses[0].code.is_none(){
-                    msg.push(0);
-                } else {
-                    msg.push(presses.len() as u8);
-                }
+                // Count only key parts when putting header length
+                let key_count = presses.iter().filter(|p| matches!(p, super::KeyboardPart::Key(_))).count();
 
-                for Accord { modifiers, code } in presses.iter() {
-                    msg.extend_from_slice(&[modifiers.as_u8(), code.map_or(0, |c| c.value())]);
+                // Use actual key count. Using 0 for single-key breaks cases with a leading delay.
+                msg.push(key_count as u8);
+
+                for part in presses.iter() {
+                    match part {
+                        super::KeyboardPart::Key(Accord { modifiers, code }) => {
+                            msg.extend_from_slice(&[modifiers.as_u8(), code.map_or(0, |c| c.value())]);
+                        }
+                        super::KeyboardPart::Delay(_) => {
+                            // Delay entries are not part of the header payload for key programming.
+                        }
+                    }
                 }
             }
             Macro::Media(code) => {
@@ -51,30 +58,77 @@ impl Keyboard for Keyboard884x {
             }
             Macro::Mouse(MouseEvent(MouseAction::Click(buttons), _)) => {
                 ensure!(!buttons.is_empty(), "buttons must be given for click macro");
-                msg.extend_from_slice(&[0x01, 0, buttons.as_u8()]);
+                // Python encoding: [modifier, button, x, y, wheel]
+                msg.push(5);
+                msg.extend_from_slice(&[0, buttons.as_u8(), 0, 0, 0]);
             }
             Macro::Mouse(MouseEvent(MouseAction::WheelUp, modifier)) => {
-                msg.extend_from_slice(&[0x03, modifier.map_or(0, |m| m as u8), 0, 0, 0, 0x1]);
+                msg.push(5);
+                msg.extend_from_slice(&[modifier.map_or(0, |m| m as u8), 0, 0, 0, 1]);
             }
             Macro::Mouse(MouseEvent(MouseAction::WheelDown, modifier)) => {
-                msg.extend_from_slice(&[0x03, modifier.map_or(0, |m| m as u8), 0, 0, 0, 0xff]);
+                msg.push(5);
+                msg.extend_from_slice(&[modifier.map_or(0, |m| m as u8), 0, 0, 0, 255]);
+            }
+            // ...existing code...
+            Macro::Mouse(MouseEvent(MouseAction::Move { dx, dy }, modifier)) => {
+                // Encode dx/dy as low bytes (two's complement via cast) into Python-style positions:
+                // [modifier, button/flag, x, y, wheel]
+                let x_b = ((*dx as i32) & 0xff) as u8;
+                let y_b = ((*dy as i32) & 0xff) as u8;
+                msg.push(5);
+                msg.extend_from_slice(&[modifier.map_or(0, |m| m as u8), 0, x_b, y_b, 0]);
             }
         };
 
+        // Send main programming message (keys/media/mouse)
         self.send(&msg)?;
 
+        // If macro has a leading delay part (we validated earlier that any delay must be leading),
+        // send a single delay message with the specified ms after programming the macro.
+        if let Macro::Keyboard(parts) = expansion {
+            if let Some(super::KeyboardPart::Delay(ms)) = parts.first() {
+                if *ms > 6000 {
+                    return Err(anyhow::anyhow!("delay value {ms}ms exceeds maximum supported 6000ms"));
+                }
+                let mut delay_msg = msg.clone();
+                delay_msg[4] = 0x05;
+                let [low, high] = ms.to_le_bytes();
+                delay_msg[5] = low;
+                delay_msg[6] = high;
+                self.send(&delay_msg)?;
+            }
+        }
+
         // Finish key binding
+        self.send(&[0x03, 0xaa, 0xaa, 0, 0, 0, 0, 0, 0])?;
         self.send(&[0x03, 0xfd, 0xfe, 0xff])?;
+        self.send(&[0x03, 0xaa, 0xaa, 0, 0, 0, 0, 0, 0])?;
 
         Ok(())
     }
 
-    fn set_led(&mut self, _n: u8) -> Result<()> {
-        bail!(
-            "If you have a device which supports backlight LEDs, please let us know at \
-               https://github.com/kriomant/ch57x-keyboard-tool/issues/60. We'll be glad to \
-               help you reverse-engineer it."
-        )
+    fn program_led(&self, mode: u8, layer: u8, color: LedColor) -> Vec<u8> {
+        let mut m_c = <LedColor as ToPrimitive>::to_u8(&color).unwrap();
+        m_c |= mode;
+        debug!("mode and code: 0x{m_c:02} layer: {layer}");
+        let mut msg = vec![0x03, 0xfe, 0xb0, layer, 0x08];
+        msg.extend_from_slice(&[0; 5]);
+        msg.extend_from_slice(&[0x01, 0x00, m_c]);
+        msg.extend_from_slice(&[0; 52]);
+        msg
+    }
+
+    fn end_program(&self) -> Vec<u8> {
+        let mut msg = vec![0x03, 0xfd, 0xfe, 0xff];
+        msg.extend_from_slice(&[0; 61]);
+        msg
+    }
+
+    fn set_led(&mut self, mode: u8, layer: u8, color: LedColor) -> Result<()> {
+        self.send(&self.program_led(mode, layer, color))?;
+        self.send(&self.end_program())?;
+        Ok(())
     }
 
     fn get_handle(&self) -> &DeviceHandle<Context> {

@@ -1,0 +1,145 @@
+#Modifiers:
+# - ctrl
+# - shift
+# - alt / opt
+# - win / cmd
+# - rctrl
+# - rshift
+# - ralt / ropt
+# - rwin / rcmd
+
+#Keys:
+# - a..z
+# - 1..0
+# - enter
+# - escape
+# - backspace
+# - tab
+# - space
+# - minus
+# - equal
+# - leftbracket
+# - rightbracket
+# - backslash
+# - nonushash
+# - semicolon
+# - quote
+# - grave
+# - comma
+# - dot
+# - slash
+# - capslock
+# - f1..f12
+# - printscreen
+# - scrolllock
+# - pause
+# - insert
+# - home
+# - pageup
+# - delete
+# - end
+# - pagedown
+# - right
+# - left
+# - down
+# - up
+# - numlock
+# - numpadslash
+# - numpadasterisk
+# - numpadminus
+# - numpadplus
+# - numpadenter
+# - numpad1..numpad0
+# - numpaddot
+# - nonusbackslash
+# - application
+# - power
+# - numpadequal
+# - f13..f24
+
+#Custom key syntax (use decimal code): <110>
+
+#Media keys:
+# - next
+# - previous / prev
+# - stop
+# - play
+# - mute
+# - volumeup
+# - volumedown
+# - favorites
+# - calculator
+# - screenlock
+# - screenbrightnessup
+# - screenbrightnessdown
+# - webpagehome
+# - webpageback
+# - webpageforward
+
+#Mouse actions:
+# - wheeldown
+# - wheelup
+# - click
+# - rclick
+# - mclick
+
+orientation: normal
+
+rows: 3
+columns: 4
+knobs: 4
+
+layers:
+  - buttons:
+      - ["cmd-t", "cmd-space", "cmd-q", "f20"] # f20 = XF86AudioMicMute
+      - ["escape", "up", "enter", "cmd-m"]
+      - ["left", "down", "right", "cmd-n"]
+    knobs:
+      - ccw: "volumedown"
+        press: "mute"
+        cw: "volumeup"
+      - ccw: "cmd-pagedown"
+        press: "cmd-c"
+        cw: "cmd-pageup"
+      - ccw: "cmd-shift-left"
+        press: "cmd-r"
+        cw: "cmd-shift-right"
+      - ccw: "cmd-left"
+        press: "cmd-f"
+        cw: "cmd-right"
+
+  - buttons:
+      - ["cmd-t", "cmd-space", "cmd-q", "f20"] # f20 = XF86AudioMicMute
+      - ["escape", "up", "enter", "cmd-m"]
+      - ["left", "down", "right", "cmd-n"]
+    knobs:
+      - ccw: "volumedown"
+        press: "mute"
+        cw: "volumeup"
+      - ccw: "cmd-pagedown"
+        press: "cmd-c"
+        cw: "cmd-pageup"
+      - ccw: "cmd-shift-left"
+        press: "cmd-r"
+        cw: "cmd-shift-right"
+      - ccw: "cmd-left"
+        press: "cmd-f"
+        cw: "cmd-right"
+
+  - buttons:
+      - ["cmd-t", "cmd-space", "cmd-q", "f20"] # f20 = XF86AudioMicMute
+      - ["escape", "up", "enter", "cmd-m"]
+      - ["left", "down", "right", "cmd-n"]
+    knobs:
+      - ccw: "volumedown"
+        press: "mute"
+        cw: "volumeup"
+      - ccw: "cmd-pagedown"
+        press: "cmd-c"
+        cw: "cmd-pageup"
+      - ccw: "cmd-shift-left"
+        press: "cmd-r"
+        cw: "cmd-shift-right"
+      - ccw: "cmd-left"
+        press: "cmd-f"
+        cw: "cmd-right"
