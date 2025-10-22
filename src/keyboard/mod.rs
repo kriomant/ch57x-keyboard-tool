@@ -404,3 +404,23 @@ impl Display for Macro {
         }
     }
 }
+
+#[cfg(test)]
+fn discard_trailing_zeroes(s: &[u8]) -> &[u8] {
+    let end =  s.iter().rposition(|&b| b != 0).map(|pos| pos+1).unwrap_or(s.len());
+    &s[..end]
+}
+
+#[cfg(test)]
+#[track_caller]
+fn assert_messages(actual: &[u8], expected: &[&[u8]]) {
+    assert!(actual.len() % 64 == 0);
+    assert_eq!(actual.len() / 64, expected.len(),
+        "expected number of messages: {}, actual: {}", expected.len(), actual.len() / 64);
+
+    for (i, (actual_msg, expected_msg)) in actual.chunks(64).zip(expected).enumerate() {
+        // Discard trailing zeroes for brevity.
+        assert_eq!(discard_trailing_zeroes(actual_msg), discard_trailing_zeroes(expected_msg),
+            "message #{}", i);
+    }
+}

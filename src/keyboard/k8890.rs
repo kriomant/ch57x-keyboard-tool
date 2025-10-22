@@ -70,3 +70,61 @@ impl Keyboard8890 {
         Self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::keyboard::{Accord, Key, Macro, Modifier, MouseAction, MouseButton, MouseEvent, WellKnownCode, assert_messages};
+    use enumset::EnumSet;
+
+    #[test]
+    fn test_keyboard_macro_bytes() {
+        let keyboard = Keyboard8890::new();
+        let mut output = Vec::new();
+
+        // Test simple key press (Ctrl + A key)
+        let a_key = Macro::Keyboard(vec![Accord::new(Modifier::Ctrl, Some(WellKnownCode::A.into()))]);
+        keyboard.bind_key(0, Key::Button(0), &a_key, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[0x03, 0xfe, 0x01, 0x01, 0x01], // binding start
+            &[0x03, 0x01, 0x11, 0x01], // empty key
+            &[0x03, 0x01, 0x11, 0x01, 0x01, 0x01, 0x04], // key press (Ctrl+A)
+            &[0x03, 0xaa, 0xaa], // binding finish
+        ]);
+    }
+
+    #[test]
+    fn test_media_macro_bytes() {
+        let keyboard = Keyboard8890::new();
+        let mut output = Vec::new();
+
+        // Test media key (Volume Up)
+        let vol_up = Macro::Media(crate::keyboard::MediaCode::VolumeUp);
+        keyboard.bind_key(0, Key::Button(1), &vol_up, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[0x03, 0xfe, 0x01, 0x01, 0x01], // binding start
+            &[0x03, 0x02, 0x12, 0xe9, 0x00], // media key
+            &[0x03, 0xaa, 0xaa], // binding finish
+        ]);
+    }
+
+    #[test]
+    fn test_mouse_macro_bytes() {
+        let keyboard = Keyboard8890::new();
+        let mut output = Vec::new();
+
+        // Test mouse click (Left button)
+        let mut buttons = EnumSet::new();
+        buttons.insert(MouseButton::Left);
+        let left_click = Macro::Mouse(MouseEvent(MouseAction::Click(buttons), None));
+        keyboard.bind_key(0, Key::Button(2), &left_click, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[0x03, 0xfe, 0x01, 0x01, 0x01], // binding start
+            &[0x03, 0x03, 0x13, 0x01], // mouse click
+            &[0x03, 0xaa, 0xaa], // binding finish
+        ]);
+    }
+}
