@@ -20,7 +20,7 @@ use indoc::indoc;
 use itertools::Itertools;
 use log::debug;
 use options::{ConfigParams, DevelOptions};
-use rusb::{Context, Device, DeviceDescriptor, TransferType};
+use rusb::{Context, Device, DeviceDescriptor, DeviceHandle, TransferType};
 
 use anyhow::Context as _;
 use clap::Parser as _;
@@ -75,34 +75,40 @@ fn main() -> Result<()> {
                 .context("load mapping config")?;
             let layers = config.render().context("render mapping config")?;
 
-            let mut keyboard = open_keyboard(&options.devel_options)?;
+            let (keyboard, handle, endpoint) = open_keyboard(&options.devel_options)?;
+            let mut output = Vec::new();
 
             // Apply keyboard mapping.
             for (layer_idx, layer) in layers.iter().enumerate() {
                 for (button_idx, macro_) in layer.buttons.iter().enumerate() {
                     if let Some(macro_) = macro_ {
-                        keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), macro_)
+                        keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), macro_, &mut output)
                             .context("bind key")?;
                     }
                 }
 
                 for (knob_idx, knob) in layer.knobs.iter().enumerate() {
                     if let Some(macro_) = &knob.ccw {
-                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCCW), macro_)?;
+                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCCW), macro_, &mut output)?;
                     }
                     if let Some(macro_) = &knob.press {
-                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::Press), macro_)?;
+                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::Press), macro_, &mut output)?;
                     }
                     if let Some(macro_) = &knob.cw {
-                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCW), macro_)?;
+                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCW), macro_, &mut output)?;
                     }
                 }
             }
+
+            // Send all accumulated data to device
+            send_to_device(&handle, endpoint, &output)?;
         }
 
         Command::Led(LedCommand { index }) => {
-            let mut keyboard = open_keyboard(&options.devel_options)?;
-            keyboard.set_led(index)?;
+            let (keyboard, handle, endpoint) = open_keyboard(&options.devel_options)?;
+            let mut output = Vec::new();
+            keyboard.set_led(index, &mut output)?;
+            send_to_device(&handle, endpoint, &output)?;
         }
     }
 
@@ -166,7 +172,22 @@ fn find_interface_and_endpoint(
     Err(anyhow!("No valid interface/endpoint combination found!"))
 }
 
-fn open_keyboard(devel_options: &DevelOptions) -> Result<Box<dyn Keyboard>> {
+fn send_to_device(handle: &DeviceHandle<Context>, endpoint: u8, output: &[u8]) -> Result<()> {
+    use std::time::Duration;
+    use log::debug;
+
+    const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
+
+    // Process output buffer in 64-byte chunks
+    for chunk in output.chunks(64) {
+        debug!("send: {:02x?}", chunk);
+        let written = handle.write_interrupt(endpoint, chunk, DEFAULT_TIMEOUT)?;
+        ensure!(written == chunk.len(), "not all data written");
+    }
+    Ok(())
+}
+
+fn open_keyboard(devel_options: &DevelOptions) -> Result<(Box<dyn Keyboard>, DeviceHandle<Context>, u8)> {
     // Find USB device based on the product id
     let (device, desc, id_product) = find_device(devel_options).context("find USB device")?;
 
@@ -195,15 +216,20 @@ fn open_keyboard(devel_options: &DevelOptions) -> Result<Box<dyn Keyboard>> {
         .claim_interface(intf_num)
         .context("claim interface")?;
 
-    match id_product {
+    // Initialize device.
+    send_to_device(&handle, endpt_addr, &vec![0u8; 64])?;
+
+    let keyboard: Box<dyn Keyboard> = match id_product {
         0x8840 | 0x8842 | 0x8850 => {
-            k884x::Keyboard884x::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
+            Box::new(k884x::Keyboard884x::new())
         }
         0x8890 => {
-            k8890::Keyboard8890::new(handle, endpt_addr).map(|v| Box::new(v) as Box<dyn Keyboard>)
+            Box::new(k8890::Keyboard8890::new())
         }
         _ => unreachable!("unsupported device"),
-    }
+    };
+
+    Ok((keyboard, handle, endpt_addr))
 }
 
 fn find_device(devel_options: &DevelOptions) -> Result<(Device<Context>, DeviceDescriptor, u16)> {

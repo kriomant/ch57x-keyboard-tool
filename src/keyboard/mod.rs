@@ -3,38 +3,29 @@ pub(crate) mod k8890;
 
 use crate::parse;
 
-use std::{time::Duration, str::FromStr, fmt::Display};
+use std::{str::FromStr, fmt::Display};
 
-use anyhow::{anyhow, ensure, Result};
+use anyhow::{anyhow, Result};
 use enumset::{EnumSetType, EnumSet};
 use log::debug;
-use rusb::{Context, DeviceHandle};
 use serde_with::DeserializeFromStr;
 use strum_macros::{EnumString, Display, EnumIter, EnumMessage};
 
 use itertools::Itertools as _;
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
-
 pub trait Keyboard {
-    fn bind_key(&mut self, layer: u8, key: Key, expansion: &Macro) -> Result<()>;
-    fn set_led(&mut self, n: u8) -> Result<()>;
+    fn bind_key(&self, layer: u8, key: Key, expansion: &Macro, output: &mut Vec<u8>) -> Result<()>;
+    fn set_led(&self, n: u8, output: &mut Vec<u8>) -> Result<()>;
 
     fn preferred_endpoint() -> u8 where Self: Sized;
-    fn get_handle(&self) -> &DeviceHandle<Context>;
-    fn get_endpoint(&self) -> u8;
+}
 
-    fn send(&mut self, msg: &[u8]) -> Result<()> {
-        let mut buf = [0; 64];
-        buf[..msg.len()].copy_from_slice(msg);
-
-        debug!("send: {:02x?}", buf);
-        let written = self
-            .get_handle()
-            .write_interrupt(self.get_endpoint(), &buf, DEFAULT_TIMEOUT)?;
-        ensure!(written == buf.len(), "not all data written");
-        Ok(())
-    }
+/// Helper function to send a message by appending it to the output buffer
+fn send_message(output: &mut Vec<u8>, msg: &[u8]) {
+    let mut buf = [0; 64];
+    buf[..msg.len()].copy_from_slice(msg);
+    debug!("send: {:02x?}", buf);
+    output.extend_from_slice(&buf);
 }
 
 #[allow(unused)]
