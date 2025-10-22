@@ -13,7 +13,7 @@ impl Keyboard for Keyboard884x {
         let mut msg = vec![
             0x03,
             0xfe,
-            key.to_key_id(15)?,
+            self.to_key_id(key)?,
             layer + 1,
             expansion.kind(),
             0,
@@ -78,6 +78,16 @@ impl Keyboard for Keyboard884x {
 impl Keyboard884x {
     pub fn new() -> Self {
         Self
+    }
+
+    fn to_key_id(&self, key: Key) -> Result<u8> {
+        const BASE: u8 = 15;
+        match key {
+            Key::Button(n) if n >= BASE => Err(anyhow::anyhow!("invalid key index")),
+            Key::Button(n) => Ok(n + 1),
+            Key::Knob(n, _) if n >= 3 => Err(anyhow::anyhow!("invalid knob index")),
+            Key::Knob(n, action) => Ok(BASE + 1 + 3 * n + (action as u8)),
+        }
     }
 }
 
