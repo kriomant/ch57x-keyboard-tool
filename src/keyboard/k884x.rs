@@ -1,21 +1,13 @@
 use anyhow::{bail, ensure, Result};
-use log::debug;
-use rusb::{Context, DeviceHandle};
 
 use crate::keyboard::{Accord, MouseEvent};
+use super::{Key, Keyboard, Macro, MouseAction, send_message};
 
-use super::{Key, Keyboard, Macro, MouseAction};
-
-pub struct Keyboard884x {
-    handle: DeviceHandle<Context>,
-    endpoint: u8,
-}
+pub struct Keyboard884x;
 
 impl Keyboard for Keyboard884x {
-    fn bind_key(&mut self, layer: u8, key: Key, expansion: &Macro) -> Result<()> {
+    fn bind_key(&self, layer: u8, key: Key, expansion: &Macro, output: &mut Vec<u8>) -> Result<()> {
         ensure!(layer <= 15, "invalid layer index");
-
-        debug!("bind {} on layer {} to {}", key, layer, expansion);
 
         let mut msg = vec![
             0x03,
@@ -64,28 +56,20 @@ impl Keyboard for Keyboard884x {
             }
         };
 
-        self.send(&msg)?;
+        send_message(output, &msg);
 
         // Finish key binding
-        self.send(&[0x03, 0xfd, 0xfe, 0xff])?;
+        send_message(output, &[0x03, 0xfd, 0xfe, 0xff]);
 
         Ok(())
     }
 
-    fn set_led(&mut self, _n: u8) -> Result<()> {
+    fn set_led(&self, _n: u8, _output: &mut Vec<u8>) -> Result<()> {
         bail!(
             "If you have a device which supports backlight LEDs, please let us know at \
                https://github.com/kriomant/ch57x-keyboard-tool/issues/60. We'll be glad to \
                help you reverse-engineer it."
         )
-    }
-
-    fn get_handle(&self) -> &DeviceHandle<Context> {
-        &self.handle
-    }
-
-    fn get_endpoint(&self) -> u8 {
-        self.endpoint
     }
 
     fn preferred_endpoint() -> u8 {
@@ -94,11 +78,7 @@ impl Keyboard for Keyboard884x {
 }
 
 impl Keyboard884x {
-    pub fn new(handle: DeviceHandle<Context>, endpoint: u8) -> Result<Self> {
-        let mut keyboard = Self { handle, endpoint };
-
-        keyboard.send(&[])?;
-
-        Ok(keyboard)
+    pub fn new() -> Self {
+        Self
     }
 }
