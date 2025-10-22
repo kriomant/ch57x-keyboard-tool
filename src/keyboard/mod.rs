@@ -5,7 +5,7 @@ use crate::parse;
 
 use std::{str::FromStr, fmt::Display};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use enumset::{EnumSetType, EnumSet};
 use log::debug;
 use serde_with::DeserializeFromStr;
@@ -56,16 +56,6 @@ impl Display for Key {
     }
 }
 
-impl Key {
-    fn to_key_id(self, base: u8) -> Result<u8> {
-        match self {
-            Key::Button(n) if n >= base => Err(anyhow!("invalid key index")),
-            Key::Button(n) => Ok(n + 1),
-            Key::Knob(n, _) if n >= 3 => Err(anyhow!("invalid knob index")),
-            Key::Knob(n, action) => Ok(base + 1 + 3 * n + (action as u8)),
-        }
-    }
-}
 
 #[derive(Debug, EnumSetType, EnumString, EnumIter, EnumMessage, Display)]
 #[strum(ascii_case_insensitive)]

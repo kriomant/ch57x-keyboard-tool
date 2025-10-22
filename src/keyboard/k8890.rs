@@ -21,7 +21,7 @@ impl Keyboard for Keyboard8890 {
                 for (i, (modifiers, code)) in items.enumerate() {
                     send_message(output, &[
                         0x03,
-                        key.to_key_id(12)?,
+                        self.to_key_id(key)?,
                         ((layer+1) << 4) | expansion.kind(),
                         len,
                         i as u8,
@@ -34,20 +34,20 @@ impl Keyboard for Keyboard8890 {
             }
             Macro::Media(code) => {
                 let [low, high] = (*code as u16).to_le_bytes();
-                send_message(output, &[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x02, low, high, 0, 0, 0, 0]);
+                send_message(output, &[0x03, self.to_key_id(key)?, ((layer+1) << 4) | 0x02, low, high, 0, 0, 0, 0]);
             }
             Macro::Mouse(MouseEvent(MouseAction::Move(dx, dy), modifier)) => {
-                send_message(output, &[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, *dx as u8, *dy as u8, 0, modifier.map_or(0, |m| m as u8), 0]);
+                send_message(output, &[0x03, self.to_key_id(key)?, ((layer+1) << 4) | 0x03, 0, *dx as u8, *dy as u8, 0, modifier.map_or(0, |m| m as u8), 0]);
             }
             Macro::Mouse(MouseEvent(MouseAction::Drag(buttons, dx, dy), modifier)) => {
-                send_message(output, &[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, buttons.as_u8(), *dx as u8, *dy as u8, 0, modifier.map_or(0, |m| m as u8), 0]);
+                send_message(output, &[0x03, self.to_key_id(key)?, ((layer+1) << 4) | 0x03, buttons.as_u8(), *dx as u8, *dy as u8, 0, modifier.map_or(0, |m| m as u8), 0]);
             }
             Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
                 ensure!(!buttons.is_empty(), "buttons must be given for click macro");
-                send_message(output, &[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0]);
+                send_message(output, &[0x03, self.to_key_id(key)?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0]);
             }
             Macro::Mouse(MouseEvent(MouseAction::Scroll(delta), modifier)) => {
-                send_message(output, &[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, 0, 0, *delta as u8, modifier.map_or(0, |m| m as u8), 0]);
+                send_message(output, &[0x03, self.to_key_id(key)?, ((layer+1) << 4) | 0x03, 0, 0, 0, *delta as u8, modifier.map_or(0, |m| m as u8), 0]);
             }
         };
 
@@ -72,6 +72,16 @@ impl Keyboard for Keyboard8890 {
 impl Keyboard8890 {
     pub fn new() -> Self {
         Self
+    }
+
+    fn to_key_id(&self, key: Key) -> Result<u8> {
+        const BASE: u8 = 12;
+        match key {
+            Key::Button(n) if n >= BASE => Err(anyhow::anyhow!("invalid key index")),
+            Key::Button(n) => Ok(n + 1),
+            Key::Knob(n, _) if n >= 3 => Err(anyhow::anyhow!("invalid knob index")),
+            Key::Knob(n, action) => Ok(BASE + 1 + 3 * n + (action as u8)),
+        }
     }
 }
 
