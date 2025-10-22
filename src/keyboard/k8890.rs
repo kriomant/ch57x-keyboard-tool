@@ -74,3 +74,111 @@ impl Keyboard8890 {
         Self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::keyboard::{Accord, Key, Macro, Modifier, MouseAction, MouseButton, MouseEvent, WellKnownCode, assert_messages};
+    use enumset::EnumSet;
+
+    #[test]
+    fn test_keyboard_macro_bytes() {
+        let keyboard = Keyboard8890::new();
+        let mut output = Vec::new();
+
+        // Test simple key press (Ctrl + A key)
+        let a_key = Macro::Keyboard(vec![Accord::new(Modifier::Ctrl, Some(WellKnownCode::A.into()))]);
+        keyboard.bind_key(0, Key::Button(0), &a_key, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[0x03, 0xfe, 0x01, 0x01, 0x01], // binding start
+            &[0x03, 0x01, 0x11, 0x01], // empty key
+            &[0x03, 0x01, 0x11, 0x01, 0x01, 0x01, 0x04], // key press (Ctrl+A)
+            &[0x03, 0xaa, 0xaa], // binding finish
+        ]);
+    }
+
+    #[test]
+    fn test_media_macro_bytes() {
+        let keyboard = Keyboard8890::new();
+        let mut output = Vec::new();
+
+        // Test media key (Volume Up)
+        let vol_up = Macro::Media(crate::keyboard::MediaCode::VolumeUp);
+        keyboard.bind_key(0, Key::Button(1), &vol_up, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[0x03, 0xfe, 0x01, 0x01, 0x01], // binding start
+            &[0x03, 0x02, 0x12, 0xe9, 0x00], // media key
+            &[0x03, 0xaa, 0xaa], // binding finish
+        ]);
+    }
+
+    #[test]
+    fn test_mouse_macro_bytes() {
+        let keyboard = Keyboard8890::new();
+        let mut output = Vec::new();
+
+        // Test mouse click (Left button)
+        let mut buttons = EnumSet::new();
+        buttons.insert(MouseButton::Left);
+        let left_click = Macro::Mouse(MouseEvent(MouseAction::Click(buttons), None));
+        keyboard.bind_key(0, Key::Button(2), &left_click, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[0x03, 0xfe, 0x01, 0x01, 0x01], // binding start
+            &[0x03, 0x03, 0x13, 0x01], // mouse click
+            &[0x03, 0xaa, 0xaa], // binding finish
+        ]);
+    }
+
+    #[test]
+    fn test_mouse_move_bytes() {
+        let keyboard = Keyboard8890::new();
+        let mut output = Vec::new();
+
+        // Test mouse move (dx=10, dy=-5)
+        let mouse_move = Macro::Mouse(MouseEvent(MouseAction::Move(10, -5), None));
+        keyboard.bind_key(0, Key::Button(3), &mouse_move, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[0x03, 0xfe, 0x01, 0x01, 0x01], // binding start
+            &[0x03, 0x04, 0x13, 0x00, 0x0a, 0xfb, 0x00, 0x00], // mouse move (dx=10, dy=-5 as 251)
+            &[0x03, 0xaa, 0xaa], // binding finish
+        ]);
+    }
+
+    #[test]
+    fn test_mouse_scroll_bytes() {
+        let keyboard = Keyboard8890::new();
+        let mut output = Vec::new();
+
+        // Test mouse scroll (delta=3)
+        let mouse_scroll = Macro::Mouse(MouseEvent(MouseAction::Scroll(3), None));
+        keyboard.bind_key(0, Key::Button(4), &mouse_scroll, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[0x03, 0xfe, 0x01, 0x01, 0x01], // binding start
+            &[0x03, 0x05, 0x13, 0x00, 0x00, 0x00, 0x03, 0x00], // mouse scroll (delta=3)
+            &[0x03, 0xaa, 0xaa], // binding finish
+        ]);
+    }
+
+    #[test]
+    fn test_mouse_drag_bytes() {
+        let keyboard = Keyboard8890::new();
+        let mut output = Vec::new();
+
+        // Test mouse drag (Left button, dx=5, dy=10)
+        let mut buttons = EnumSet::new();
+        buttons.insert(MouseButton::Left);
+        let mouse_drag = Macro::Mouse(MouseEvent(MouseAction::Drag(buttons, 5, 10), None));
+        keyboard.bind_key(0, Key::Button(5), &mouse_drag, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[0x03, 0xfe, 0x01, 0x01, 0x01], // binding start
+            &[0x03, 0x06, 0x13, 0x01, 0x05, 0x0a, 0x00, 0x00], // mouse drag (buttons=1, dx=5, dy=10)
+            &[0x03, 0xaa, 0xaa], // binding finish
+        ]);
+    }
+}

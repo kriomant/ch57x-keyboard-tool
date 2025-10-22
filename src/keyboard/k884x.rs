@@ -82,3 +82,168 @@ impl Keyboard884x {
         Self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::keyboard::{Key, Macro, Modifier, MouseAction, MouseButton, MouseEvent, WellKnownCode, assert_messages};
+    use enumset::EnumSet;
+
+    #[test]
+    fn test_keyboard_macro_bytes() {
+        let keyboard = Keyboard884x::new();
+        let mut output = Vec::new();
+
+        // Test simple key press (Ctrl + A key)
+        let a_key = Macro::Keyboard(vec![Accord::new(Modifier::Ctrl, Some(WellKnownCode::A.into()))]);
+        keyboard.bind_key(0, Key::Button(0), &a_key, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[
+                0x03, // Message header
+                0xfe, // Bind command
+                0x01, // Key ID (button 0 + 1)
+                0x01, // Layer 0 + 1
+                0x01, // Keyboard macro type
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x01, // Single press
+                0x01, // Ctrl modifier
+                0x04, // A key code
+            ],
+            &[0x03, 0xfd, 0xfe, 0xff],
+        ]);
+    }
+
+    #[test]
+    fn test_media_macro_bytes() {
+        let keyboard = Keyboard884x::new();
+        let mut output = Vec::new();
+
+        // Test media key (Volume Up)
+        let vol_up = Macro::Media(crate::keyboard::MediaCode::VolumeUp);
+        keyboard.bind_key(0, Key::Button(1), &vol_up, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[
+                0x03, // Message header
+                0xfe, // Bind command
+                0x02, // Key ID (button 1 + 1)
+                0x01,
+                0x02, // Media macro type
+                0x00, // Empty count
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0xe9, // Volume Up code (low byte)
+                0x00, // Volume Up code (high byte)
+            ],
+            &[0x03, 0xfd, 0xfe, 0xff],
+        ]);
+    }
+
+    #[test]
+    fn test_mouse_macro_bytes() {
+        let keyboard = Keyboard884x::new();
+        let mut output = Vec::new();
+
+        // Test mouse click (Left button)
+        let mut buttons = EnumSet::new();
+        buttons.insert(MouseButton::Left);
+        let left_click = Macro::Mouse(MouseEvent(MouseAction::Click(buttons), None));
+        keyboard.bind_key(0, Key::Button(2), &left_click, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[
+                0x03, // Message header
+                0xfe, // Bind command
+                0x03, // Key ID (button 2 + 1)
+                0x01, // Mouse action type (click)
+                0x03, // Mouse macro type
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x01, // Left button pressed
+                0x00, 0x01,
+            ],
+            &[0x03, 0xfd, 0xfe, 0xff],
+        ]);
+    }
+
+    #[test]
+    fn test_mouse_move_bytes() {
+        let keyboard = Keyboard884x::new();
+        let mut output = Vec::new();
+
+        // Test mouse move (dx=10, dy=-5)
+        let mouse_move = Macro::Mouse(MouseEvent(MouseAction::Move(10, -5), None));
+        keyboard.bind_key(0, Key::Button(3), &mouse_move, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[
+                0x03, // Message header
+                0xfe, // Bind command
+                0x04, // Key ID (button 3 + 1)
+                0x01, // Layer 0 + 1
+                0x03, // Mouse macro type
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x05, // Move action type
+                0x00, // No modifier
+                0x00, // No buttons
+                0x0a, // dx=10
+                0xfb, // dy=-5 (as 251)
+            ],
+            &[0x03, 0xfd, 0xfe, 0xff],
+        ]);
+    }
+
+    #[test]
+    fn test_mouse_scroll_bytes() {
+        let keyboard = Keyboard884x::new();
+        let mut output = Vec::new();
+
+        // Test mouse scroll (delta=3)
+        let mouse_scroll = Macro::Mouse(MouseEvent(MouseAction::Scroll(3), None));
+        keyboard.bind_key(0, Key::Button(4), &mouse_scroll, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[
+                0x03, // Message header
+                0xfe, // Bind command
+                0x05, // Key ID (button 4 + 1)
+                0x01, // Layer 0 + 1
+                0x03, // Mouse macro type
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x03, // Scroll action type
+                0x00, // No modifier
+                0x00, 0x00, 0x00,
+                0x03, // delta=3
+            ],
+            &[0x03, 0xfd, 0xfe, 0xff],
+        ]);
+    }
+
+    #[test]
+    fn test_mouse_drag_bytes() {
+        let keyboard = Keyboard884x::new();
+        let mut output = Vec::new();
+
+        // Test mouse drag (Left button, dx=5, dy=10)
+        let mut buttons = EnumSet::new();
+        buttons.insert(MouseButton::Left);
+        let mouse_drag = Macro::Mouse(MouseEvent(MouseAction::Drag(buttons, 5, 10), None));
+        keyboard.bind_key(0, Key::Button(5), &mouse_drag, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[
+                0x03, // Message header
+                0xfe, // Bind command
+                0x06, // Key ID (button 5 + 1)
+                0x01, // Layer 0 + 1
+                0x03, // Mouse macro type
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x05, // Drag action type
+                0x00, // No modifier
+                0x01, // Left button
+                0x05, // dx=5
+                0x0a, // dy=10
+            ],
+            &[0x03, 0xfd, 0xfe, 0xff],
+        ]);
+    }
+}
