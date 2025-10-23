@@ -1,4 +1,12 @@
-# ch57x-keyboard-tool Macro Keyboard Configuration Utility
+# ch57x-keyboard-tool
+
+Macro Keyboard Configuration Utility
+
+Forked from [kriomant/ch57x-keyboard-tool](https://github.com/kriomant/ch57x-keyboard-tool), but with the following changes:
+* Support for 12-key, 4-knob macropads
+* Support for delays of up to 6 seconds per keyboard macro (see [Create configuration file](#create-configuration-file))
+* Support for mouse movement by x,y units
+* Fix writing to layers 2 & 3 for macropads of vendor ID 514C, product ID 8850
 
 ![Last Commit Shields.io](https://img.shields.io/github/last-commit/kriomant/ch57x-keyboard-tool?style=for-the-badge) ![Release Workflow Badge](https://github.com/kriomant/ch57x-keyboard-tool/actions/workflows/release.yml/badge.svg)
 
@@ -11,6 +19,7 @@
     * [Build it yourself](#build-it-yourself)
 * [Usage](#usage)
     * [Commands and options](#commands-and-options)
+    * [Create configuration file](#create-configuration-file)
     * [Validate the config file](#validate-the-config-file)
     * [Upload the config to the keyboard](#upload-the-config-to-the-keyboard)
     * [Change LED configuration](#change-led-configuration)
@@ -96,6 +105,13 @@ Edit existing `example-mapping.yaml` or (better) save modified copy under differ
 
 Example config file has extensive documentation inside.
 
+Delay syntax: You may optionally specify a single leading delay for a keyboard macro using the token `delay[ms]` where `ms` is an integer number of milliseconds. Example: `delay[2000],a,b,c` will output `a`, wait for 2000ms, output `b`, wait for 2000ms, then output `c`. Important rules:
+
+- Only one leading `delay[...]` is allowed per keyboard macro and it must appear as the first item in the sequence.
+- The maximum supported delay is 6000ms. Values larger than 6000 will cause validation to fail and the upload will be rejected.
+- Delays are supported for both buttons and knobs.
+- Some keyboard firmware does not support programmable delays; in particular, the `k8890` model rejects macros containing delays. Such an upload will be rejected.
+
 You may also get list of supported key names using:
 
 ```shell
@@ -140,11 +156,22 @@ sudo udevadm trigger
 If your keyboard supports it, you can change the LED configuration:
 
 ```shell
-# Turn off the LED
-./ch57x-keyboard-tool led 0
+# Turn off the LED on layer 1
+./ch57x-keyboard-tool led 0 1
 
-# Set the LED to the first mode (likely "Steady on")
-./ch57x-keyboard-tool led 1
+# Set the LED to the first mode (likely "Steady on") on layer 1
+./ch57x-keyboard-tool led 1 1 cyan
+
+# Set the LED to the second mode on layer 1. Second and third modes are something like "Shock" effect
+./ch57x-keyboard-tool led 2 1 red
+
+# Set the LED to the 4th mode on layer 2. No backlight, just light up when keypressed
+./ch57x-keyboard-tool led 4 2 orange
+
+# Set the LED to the 5th mode on layer 3. Backlight with white color (you may specify or not color param, it's unnecessary)
+./ch57x-keyboard-tool led 5 3
+
+# Supported colors: red, orange, yellow, green, cyan, blue, purple
 ```
 
 ### Windows / PowerShell

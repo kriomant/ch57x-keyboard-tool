@@ -8,7 +8,7 @@
 use nom::{
     Parser, IResult, InputLength,
     branch::alt,
-    sequence::{tuple, terminated, separated_pair, delimited, pair},
+    sequence::{tuple, terminated, separated_pair, delimited, pair, preceded},
     multi::{separated_list1, fold_many0},
     bytes::complete::tag,
     character::complete::{char, alpha1, alphanumeric1, digit1},
@@ -16,7 +16,7 @@ use nom::{
     error::ParseError,
 };
 
-use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier, MouseButton, MouseButtons, MouseAction, MediaCode, Code, WellKnownCode};
+use crate::keyboard::{Accord, Modifier, Modifiers, Macro, KeyboardPart, MouseEvent, MouseModifier, MouseButton, MouseButtons, MouseAction, MediaCode, Code, WellKnownCode};
 
 use std::str::FromStr;
 
@@ -26,6 +26,14 @@ fn mouse_modifier(s: &str) -> IResult<&str, MouseModifier> {
 
 fn media_code(s: &str) -> IResult<&str, MediaCode> {
     map_res(alpha1, MediaCode::from_str)(s)
+}
+
+fn signed_int(s: &str) -> IResult<&str, i16> {
+    map_res(pair(opt(char('-')), digit1), |(sign, digits): (Option<char>, &str)| {
+        let mut val: i16 = digits.parse().map_err(|e: std::num::ParseIntError| e)?;
+        if sign.is_some() { val = -val; }
+        Ok::<i16, std::num::ParseIntError>(val)
+    })(s)
 }
 
 pub fn code(s: &str) -> IResult<&str, Code> {
@@ -85,10 +93,15 @@ fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
         value(MouseAction::WheelDown, tag("wheeldown")),
     ));
 
+    let mousemove = map(
+        preceded(tag("mousemove"), delimited(char('['), separated_pair(signed_int, char(','), signed_int), char(']'))),
+        |(dx, dy)| MouseAction::Move { dx, dy }
+    );
+
     let mut event = map(
         tuple((
             opt(terminated(mouse_modifier, char('-'))),
-            alt((click, wheel)),
+            alt((click, wheel, mousemove)),
         )),
         |(modifier, action)| MouseEvent(action, modifier)
     );
@@ -96,11 +109,35 @@ fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
     event(s)
 }
 
+fn delay_part(s: &str) -> IResult<&str, KeyboardPart> {
+    let mut parser = map(
+        tuple((tag("delay"), delimited(char('['), map_res(digit1, |d: &str| d.parse::<u16>()), char(']')))),
+        |(_, ms)| KeyboardPart::Delay(ms),
+    );
+    parser(s)
+}
+
+fn keyboard_part(s: &str) -> IResult<&str, KeyboardPart> {
+    alt((map(accord, KeyboardPart::Key), delay_part))(s)
+}
+
 pub fn r#macro(s: &str) -> IResult<&str, Macro> {
+    // If input contains comma-separated parts, ensure media tokens are not present
+    // (media macros are standalone and cannot be combined with delays/keys/modifiers).
+    if s.contains(',') {
+        for seg in s.split(',') {
+            let seg = seg.trim();
+            // If a segment parses as a media code, reject the whole input with a clear failure.
+            if media_code(seg).is_ok() {
+                return Err(nom::Err::Failure(nom::error::Error::new(s, nom::error::ErrorKind::Verify)));
+            }
+        }
+    }
+
     let mut parser = alt((
         map(mouse_event, Macro::Mouse),
         map(media_code, Macro::Media),
-        map(separated_list1(char(','), accord), Macro::Keyboard),
+        map(separated_list1(char(','), keyboard_part), Macro::Keyboard),
     ));
     parser(s)
 }
@@ -137,7 +174,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::keyboard::{Accord, Modifiers, Code, Modifier, Macro, MouseEvent, MouseModifier, MouseButton, MouseAction, MediaCode, WellKnownCode};
+    use crate::keyboard::{Accord, Modifiers, Code, Modifier, Macro, KeyboardPart, MouseEvent, MouseModifier, MouseButton, MouseAction, MediaCode, WellKnownCode};
 
     #[test]
     fn parse_custom_code() {
@@ -161,12 +198,12 @@ mod tests {
     #[test]
     fn parse_macro() {
         assert_eq!("A,B".parse(), Ok(Macro::Keyboard(vec![
-            Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into())),
-            Accord::new(Modifiers::empty(), Some(WellKnownCode::B.into())),
+            KeyboardPart::Key(Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into()))),
+            KeyboardPart::Key(Accord::new(Modifiers::empty(), Some(WellKnownCode::B.into()))),
         ])));
         assert_eq!("ctrl-A,alt-backspace".parse(), Ok(Macro::Keyboard(vec![
-            Accord::new(Modifier::Ctrl, Some(WellKnownCode::A.into())),
-            Accord::new(Modifier::Alt, Some(WellKnownCode::Backspace.into())),
+            KeyboardPart::Key(Accord::new(Modifier::Ctrl, Some(WellKnownCode::A.into()))),
+            KeyboardPart::Key(Accord::new(Modifier::Alt, Some(WellKnownCode::Backspace.into()))),
         ])));
         assert_eq!("click".parse(), Ok(Macro::Mouse(
             MouseEvent(MouseAction::Click(MouseButton::Left.into()), None)
@@ -185,5 +222,16 @@ mod tests {
     #[test]
     fn parse_media() {
         assert_eq!("play".parse(), Ok(Macro::Media(MediaCode::Play)));
+    }
+
+    #[test]
+    fn parse_mousemove_numeric() {
+        assert_eq!("mousemove[10,20]".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Move { dx: 10, dy: 20 }, None)
+        )));
+
+        assert_eq!("mousemove[-5,-10]".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Move { dx: -5, dy: -10 }, None)
+        )));
     }
 }

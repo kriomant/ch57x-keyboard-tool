@@ -18,6 +18,7 @@ use crate::{keyboard::Key, options::Options};
 use anyhow::{anyhow, ensure, Result};
 use indoc::indoc;
 use itertools::Itertools;
+use keyboard::LedColor;
 use log::debug;
 use options::{ConfigParams, DevelOptions};
 use rusb::{Context, Device, DeviceDescriptor, TransferType};
@@ -100,9 +101,16 @@ fn main() -> Result<()> {
             }
         }
 
-        Command::Led(LedCommand { index }) => {
+        Command::Led(LedCommand { index, layer, led_color }) => {
             let mut keyboard = open_keyboard(&options.devel_options)?;
-            keyboard.set_led(index)?;
+
+            // color is not supported on 0x8890 so don't require one to be passed
+            let color = if led_color.is_some() {
+                led_color.unwrap()
+            } else {
+                LedColor::Red
+            };
+            keyboard.set_led(index, layer, color)?;
         }
     }
 

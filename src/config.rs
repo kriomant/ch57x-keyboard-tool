@@ -1,7 +1,7 @@
 use anyhow::{bail, ensure, Result};
 use serde::Deserialize;
 
-use crate::keyboard::Macro;
+use crate::keyboard::{Macro, KeyboardPart, MouseAction, MouseEvent};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -36,13 +36,88 @@ impl Config {
             if is_limited {
                 let macro_with_modifiers_beside_first_key = buttons.iter().flatten().find(|macro_| {
                     match macro_ {
-                        Macro::Keyboard(accords) => accords.iter().skip(1).any(|accord| !accord.modifiers.is_empty()),
+                        Macro::Keyboard(parts) => parts.iter().filter_map(|p| match p { KeyboardPart::Key(a) => Some(a), _ => None }).skip(1).any(|accord| !accord.modifiers.is_empty()),
                         _ => false,
                     }
                 });
                 if let Some(macro_) = macro_with_modifiers_beside_first_key {
                     bail!("1-row keyboard with 1 knob can handle modifiers for first key in sequence only: {}", macro_);
                 }
+            }
+
+            // Validate delay usage: at most one delay allowed and if present it must be the first item
+            for (r_idx, button_macro) in buttons.iter().enumerate() {
+                if let Some(m) = button_macro {
+                    // Validate mouse moves as well as keyboard parts
+                    if let Macro::Mouse(MouseEvent(action, _)) = m {
+                        if let MouseAction::Move { dx, dy } = action {
+                            if *dx < -128 || *dx > 127 || *dy < -128 || *dy > 127 {
+                                bail!("Invalid mapping: mouse move dx/dy ({},{}) exceeds supported range -128..127 in macro '{}' in layer {}, button index {}.", dx, dy, m, i, r_idx);
+                            }
+                        }
+                    }
+
+                    if let Macro::Keyboard(parts) = m {
+                        // count delays
+                        let delay_count = parts.iter().filter(|p| matches!(p, KeyboardPart::Delay(_))).count();
+                        if delay_count > 1 {
+                            bail!("Invalid mapping: more than one delay found in macro '{}' in layer {}, button index {}. Only a single leading delay is allowed.", m, i, r_idx);
+                        }
+                        if delay_count == 1 {
+                            // ensure it is the first element
+                            match parts.first() {
+                                Some(KeyboardPart::Delay(ms)) => {
+                                    if *ms > 6000 {
+                                        bail!("Invalid mapping: delay {}ms exceeds maximum supported 6000ms in macro '{}' in layer {}, button index {}.", ms, m, i, r_idx);
+                                    }
+                                }
+                                _ => {
+                                    bail!("Invalid mapping: delay must be the first item in macro '{}' in layer {}, button index {}.", m, i, r_idx);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Validate knobs too (each knob has ccw/press/cw macros)
+            for (k_idx, knob) in knobs.iter().enumerate() {
+                let check = |opt_macro: &Option<Macro>| -> Result<()> {
+                    if let Some(m) = opt_macro {
+                        // Validate mouse move values on knobs too
+                        if let Macro::Mouse(MouseEvent(action, _)) = m {
+                            if let MouseAction::Move { dx, dy } = action {
+                                if *dx < -128 || *dx > 127 || *dy < -128 || *dy > 127 {
+                                    bail!("Invalid mapping: mouse move dx/dy ({},{}) exceeds supported range -128..127 in knob macro '{}' in layer {}, knob index {}.", dx, dy, m, i, k_idx);
+                                }
+                            }
+                        }
+
+                        if let Macro::Keyboard(parts) = m {
+                            let delay_count = parts.iter().filter(|p| matches!(p, KeyboardPart::Delay(_))).count();
+                            if delay_count > 1 {
+                                bail!("Invalid mapping: more than one delay found in knob macro '{}' in layer {}, knob index {}. Only a single leading delay is allowed.", m, i, k_idx);
+                            }
+                            if delay_count == 1 {
+                                match parts.first() {
+                                    Some(KeyboardPart::Delay(ms)) => {
+                                        if *ms > 6000 {
+                                            bail!("Invalid mapping: delay {}ms exceeds maximum supported 6000ms in knob macro '{}' in layer {}, knob index {}.", ms, m, i, k_idx);
+                                        }
+                                    }
+                                    _ => {
+                                        bail!("Invalid mapping: delay must be the first item in knob macro '{}' in layer {}, knob index {}.", m, i, k_idx);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Ok(())
+                };
+
+                check(&knob.ccw)?;
+                check(&knob.press)?;
+                check(&knob.cw)?;
             }
 
             Ok(FlatLayer { buttons, knobs })
@@ -183,6 +258,124 @@ mod tests {
                     ],
                     knobs: vec![Knob { ccw: None, press: None, cw: None }],
                 },
+            ],
+        };
+        config.render().unwrap();
+    }
+
+    #[test]
+    fn accept_single_leading_delay() {
+        let config = Config {
+            orientation: Orientation::Normal,
+            rows: 1,
+            columns: 3,
+            knobs: 0,
+            layers: vec![
+                Layer {
+                    buttons: vec![vec![
+                        Some("delay[1000],1,a,b,c".parse().unwrap()),
+                        None,
+                        None
+                    ]],
+                    knobs: vec![],
+                }
+            ],
+        };
+        config.render().unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected="more than one delay")]
+    fn reject_multiple_delays() {
+        let config = Config {
+            orientation: Orientation::Normal,
+            rows: 1,
+            columns: 3,
+            knobs: 0,
+            layers: vec![
+                Layer {
+                    buttons: vec![vec![
+                        Some("delay[1000],delay[200],1".parse().unwrap()),
+                        None,
+                        None
+                    ]],
+                    knobs: vec![],
+                }
+            ],
+        };
+        config.render().unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected="delay must be the first")]
+    fn reject_non_leading_delay() {
+        let config = Config {
+            orientation: Orientation::Normal,
+            rows: 1,
+            columns: 3,
+            knobs: 0,
+            layers: vec![
+                Layer {
+                    buttons: vec![vec![
+                        Some("1,delay[100],a".parse().unwrap()),
+                        None,
+                        None
+                    ]],
+                    knobs: vec![],
+                }
+            ],
+        };
+        config.render().unwrap();
+    }
+
+    #[test]
+    fn accept_knob_leading_delay() {
+        let config = Config {
+            orientation: Orientation::Normal,
+            rows: 1,
+            columns: 1,
+            knobs: 1,
+            layers: vec![
+                Layer {
+                    buttons: vec![vec![None]],
+                    knobs: vec![Knob { ccw: Some("delay[500],1".parse().unwrap()), press: None, cw: None }],
+                }
+            ],
+        };
+        config.render().unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected="more than one delay")]
+    fn reject_knob_multiple_delays() {
+        let config = Config {
+            orientation: Orientation::Normal,
+            rows: 1,
+            columns: 1,
+            knobs: 1,
+            layers: vec![
+                Layer {
+                    buttons: vec![vec![None]],
+                    knobs: vec![Knob { ccw: Some("delay[100],delay[200],1".parse().unwrap()), press: None, cw: None }],
+                }
+            ],
+        };
+        config.render().unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected="delay must be the first")]
+    fn reject_knob_non_leading_delay() {
+        let config = Config {
+            orientation: Orientation::Normal,
+            rows: 1,
+            columns: 1,
+            knobs: 1,
+            layers: vec![
+                Layer {
+                    buttons: vec![vec![None]],
+                    knobs: vec![Knob { ccw: Some("1,delay[100]".parse().unwrap()), press: None, cw: None }],
+                }
             ],
         };
         config.render().unwrap();

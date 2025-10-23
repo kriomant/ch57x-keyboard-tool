@@ -4,7 +4,7 @@ pub(crate) mod k8890;
 use crate::parse;
 
 use std::{time::Duration, str::FromStr, fmt::Display};
-
+use num_derive::ToPrimitive;
 use anyhow::{anyhow, ensure, Result};
 use enumset::{EnumSetType, EnumSet};
 use log::debug;
@@ -18,14 +18,16 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
 
 pub trait Keyboard {
     fn bind_key(&mut self, layer: u8, key: Key, expansion: &Macro) -> Result<()>;
-    fn set_led(&mut self, n: u8) -> Result<()>;
+    fn set_led(&mut self, mode: u8, layer: u8, color: LedColor) -> Result<()>;
+    fn program_led(&self, mode: u8, layer: u8, color: LedColor) -> Vec<u8>;
+    fn end_program(&self) -> Vec<u8>;
 
     fn preferred_endpoint() -> u8 where Self: Sized;
     fn get_handle(&self) -> &DeviceHandle<Context>;
     fn get_endpoint(&self) -> u8;
 
     fn send(&mut self, msg: &[u8]) -> Result<()> {
-        let mut buf = [0; 64];
+        let mut buf = [0; 65];
         buf[..msg.len()].copy_from_slice(msg);
 
         debug!("send: {:02x?}", buf);
@@ -35,6 +37,18 @@ pub trait Keyboard {
         ensure!(written == buf.len(), "not all data written");
         Ok(())
     }
+}
+
+#[derive(Debug, Default, ToPrimitive, Clone, Copy, Display, clap::ValueEnum)]
+pub enum LedColor {
+    Red = 0x10,
+    Orange = 0x20,
+    Yellow = 0x30,
+    Green = 0x40,
+    #[default]
+    Cyan = 0x50,
+    Blue = 0x60,
+    Purple = 0x70,
 }
 
 #[allow(unused)]
@@ -70,7 +84,10 @@ impl Key {
         match self {
             Key::Button(n) if n >= base => Err(anyhow!("invalid key index")),
             Key::Button(n) => Ok(n + 1),
-            Key::Knob(n, _) if n >= 3 => Err(anyhow!("invalid knob index")),
+            Key::Knob(n, _) if n >= 4 => Err(anyhow!("invalid knob index")),
+            // Special case: 4th knob (index 3)
+            Key::Knob(3, action) => Ok(13 + (action as u8)),
+            // Default knob case
             Key::Knob(n, action) => Ok(base + 1 + 3 * n + (action as u8)),
         }
     }
@@ -344,6 +361,9 @@ pub enum MouseAction {
     Click(MouseButtons),
     WheelUp,
     WheelDown,
+    /// Relative move in device units. Positive X = right, Positive Y = down.
+    #[allow(dead_code)]
+    Move { dx: i16, dy: i16 },
 }
 
 impl Display for MouseAction {
@@ -354,6 +374,7 @@ impl Display for MouseAction {
             }
             MouseAction::WheelUp => { write!(f, "wheelup")?; }
             MouseAction::WheelDown => { write!(f, "wheeldown")?; }
+            MouseAction::Move { dx, dy } => { write!(f, "move({},{})", dx, dy)?; }
         }
         Ok(())
     }
@@ -373,9 +394,24 @@ impl Display for MouseEvent {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, DeserializeFromStr)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeyboardPart {
+    Key(Accord),
+    Delay(u16),
+}
+
+impl std::fmt::Display for KeyboardPart {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            KeyboardPart::Key(accord) => write!(f, "{}", accord),
+            KeyboardPart::Delay(ms) => write!(f, "delay[{}]", ms),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Macro {
-    Keyboard(Vec<Accord>),
+    Keyboard(Vec<KeyboardPart>),
     #[allow(unused)]
     Media(MediaCode),
     #[allow(unused)]
@@ -412,6 +448,38 @@ impl Display for Macro {
             Macro::Mouse(event) => {
                 write!(f, "{}", event)
             }
+        }
+    }
+}
+
+// Provide a custom Deserialize impl so we can return friendlier errors when
+// users try to combine media tokens with delays/keys (media must be standalone).
+impl<'de> serde::Deserialize<'de> for Macro {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // Deserialize as string first
+        let s = String::deserialize(deserializer)?;
+
+        // If the user provided a comma-separated macro and any segment is a media
+        // token, return a clear error explaining media macros must be standalone.
+        if s.contains(',') {
+            for seg in s.split(',') {
+                let seg = seg.trim();
+                if seg.parse::<MediaCode>().is_ok() {
+                    return Err(serde::de::Error::custom(format!(
+                        "media macros must be standalone: '{}' cannot be combined with delays or other keys",
+                        seg
+                    )));
+                }
+            }
+        }
+
+        // Fall back to existing FromStr parsing and surface its error if parsing fails.
+        match s.parse::<Macro>() {
+            Ok(m) => Ok(m),
+            Err(e) => Err(serde::de::Error::custom(format!("invalid macro '{}': {}", s, e))),
         }
     }
 }
