@@ -73,9 +73,12 @@ fn main() -> Result<()> {
         Command::Upload(params) => {
             let config: Config = load_config(&params)
                 .context("load mapping config")?;
+            let (buttons, knobs) = (config.rows * config.columns, config.knobs);
             let layers = config.render().context("render mapping config")?;
 
-            let (keyboard, handle, endpoint) = open_keyboard(&options.devel_options)?;
+            let (handle, endpoint, id_product) = open_device(&options.devel_options)?;
+            let keyboard = create_driver(id_product, buttons, knobs)?;
+
             let mut output = Vec::new();
 
             // Apply keyboard mapping.
@@ -105,7 +108,9 @@ fn main() -> Result<()> {
         }
 
         Command::Led(LedCommand { index }) => {
-            let (keyboard, handle, endpoint) = open_keyboard(&options.devel_options)?;
+            let (handle, endpoint, id_product) = open_device(&options.devel_options)?;
+            // TODO: fix this dirty hack
+            let keyboard = create_driver(id_product, 0, 0)?;
             let mut output = Vec::new();
             keyboard.set_led(index, &mut output)?;
             send_to_device(&handle, endpoint, &output)?;
@@ -187,7 +192,7 @@ fn send_to_device(handle: &DeviceHandle<Context>, endpoint: u8, output: &[u8]) -
     Ok(())
 }
 
-fn open_keyboard(devel_options: &DevelOptions) -> Result<(Box<dyn Keyboard>, DeviceHandle<Context>, u8)> {
+fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u8, u16)> {
     // Find USB device based on the product id
     let (device, desc, id_product) = find_device(devel_options).context("find USB device")?;
 
@@ -219,17 +224,20 @@ fn open_keyboard(devel_options: &DevelOptions) -> Result<(Box<dyn Keyboard>, Dev
     // Initialize device.
     send_to_device(&handle, endpt_addr, &vec![0u8; 64])?;
 
+    Ok((handle, endpt_addr, id_product))
+}
+
+fn create_driver(id_product: u16, buttons: u8, knobs: u8) -> Result<Box<dyn Keyboard>> {
     let keyboard: Box<dyn Keyboard> = match id_product {
         0x8840 | 0x8842 | 0x8850 => {
-            Box::new(k884x::Keyboard884x::new())
+            Box::new(k884x::Keyboard884x::new(buttons, knobs)?)
         }
         0x8890 => {
             Box::new(k8890::Keyboard8890::new())
         }
         _ => unreachable!("unsupported device"),
     };
-
-    Ok((keyboard, handle, endpt_addr))
+    Ok(keyboard)
 }
 
 fn find_device(devel_options: &DevelOptions) -> Result<(Device<Context>, DeviceDescriptor, u16)> {

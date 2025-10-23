@@ -4,7 +4,10 @@ use crate::keyboard::Accord;
 
 use super::{Key, Keyboard, Macro, MouseAction, MouseEvent, send_message};
 
-pub struct Keyboard884x;
+pub struct Keyboard884x {
+    buttons: u8,
+    knobs: u8,
+}
 
 impl Keyboard for Keyboard884x {
     fn bind_key(&self, layer: u8, key: Key, expansion: &Macro, output: &mut Vec<u8>) -> Result<()> {
@@ -76,17 +79,30 @@ impl Keyboard for Keyboard884x {
 }
 
 impl Keyboard884x {
-    pub fn new() -> Self {
-        Self
+    pub fn new(buttons: u8, knobs: u8) -> Result<Self> {
+        ensure!(
+            (buttons <= 15 && knobs <= 3) ||
+            (buttons <= 12 && knobs <= 4),
+            "unsupported combination of buttons and knobs count"
+        );
+        Ok(Self { buttons, knobs })
     }
 
     fn to_key_id(&self, key: Key) -> Result<u8> {
-        const BASE: u8 = 15;
+        const MAX_NUMBER_OF_BUTTONS: u8 = 15;
         match key {
-            Key::Button(n) if n >= BASE => Err(anyhow::anyhow!("invalid key index")),
+            Key::Button(n) if n >= MAX_NUMBER_OF_BUTTONS => Err(anyhow::anyhow!("invalid key index")),
+
+            // There are keyboards with 15 buttons and 3 knobs, so NUMBER_OF_BUTTONS is correct
+            // overall. However, there are keyboards with 12 buttons and 4 knobs, and fourth knob
+            // doesn't use 25-27 codes as it should, but use 13-15, which are allocated for buttons.
+            // So, it seems, they exchange one row of buttons to extra knob.
+            Key::Button(n) if n >= 12 && self.knobs == 4 => Err(anyhow::anyhow!("invalid key index")),
+            Key::Knob(4, action) if self.buttons <= 12 => Ok(13 + (action as u8)),
+
             Key::Button(n) => Ok(n + 1),
             Key::Knob(n, _) if n >= 3 => Err(anyhow::anyhow!("invalid knob index")),
-            Key::Knob(n, action) => Ok(BASE + 1 + 3 * n + (action as u8)),
+            Key::Knob(n, action) => Ok(MAX_NUMBER_OF_BUTTONS + 1 + 3 * n + (action as u8)),
         }
     }
 }
@@ -94,12 +110,12 @@ impl Keyboard884x {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::keyboard::{Key, Macro, Modifier, MouseAction, MouseButton, MouseEvent, WellKnownCode, assert_messages};
+    use crate::keyboard::{Key, KnobAction, Macro, Modifier, MouseAction, MouseButton, MouseEvent, WellKnownCode, assert_messages};
     use enumset::EnumSet;
 
     #[test]
     fn test_keyboard_macro_bytes() {
-        let keyboard = Keyboard884x::new();
+        let keyboard = Keyboard884x::new(12, 3).unwrap();
         let mut output = Vec::new();
 
         // Test simple key press (Ctrl + A key)
@@ -124,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_media_macro_bytes() {
-        let keyboard = Keyboard884x::new();
+        let keyboard = Keyboard884x::new(12, 3).unwrap();
         let mut output = Vec::new();
 
         // Test media key (Volume Up)
@@ -149,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_mouse_macro_bytes() {
-        let keyboard = Keyboard884x::new();
+        let keyboard = Keyboard884x::new(12, 3).unwrap();
         let mut output = Vec::new();
 
         // Test mouse click (Left button)
@@ -167,6 +183,38 @@ mod tests {
                 0x03, // Mouse macro type
                 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x01, // Left button pressed
+                0x00, 0x01,
+            ],
+            &[0x03, 0xfd, 0xfe, 0xff],
+        ]);
+    }
+
+    #[test]
+    #[should_panic(expected="unsupported combination of buttons and knobs count")]
+    fn test_keyboard_with_15_buttons_cant_have_fourth_knob() {
+        Keyboard884x::new(15, 4).unwrap();
+    }
+
+    #[test]
+    fn test_keyboard_with_12_buttons_can_have_fourth_knob() {
+        let keyboard = Keyboard884x::new(12, 4).unwrap();
+        let mut output = Vec::new();
+
+        // Test mouse click (Left button)
+        let mut buttons = EnumSet::new();
+        buttons.insert(MouseButton::Left);
+        let left_click = Macro::Mouse(MouseEvent(MouseAction::Click(buttons), None));
+        keyboard.bind_key(0, Key::Knob(4, KnobAction::Press), &left_click, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[
+                0x03,
+                0xfe,
+                0x0e, // Fouth knob uses codes usually used by buttons 13-15
+                0x01,
+                0x03,
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x01,
                 0x00, 0x01,
             ],
             &[0x03, 0xfd, 0xfe, 0xff],
