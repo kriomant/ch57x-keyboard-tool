@@ -245,7 +245,9 @@ pub enum WellKnownCode {
     F11,
     F12,
     PrintScreen,
+    #[strum(serialize="scrolllock", serialize="macbrightnessdown")]
     ScrollLock,
+    #[strum(serialize="pause", serialize="macbrightnessup")]
     Pause,
     Insert,
     Home,
