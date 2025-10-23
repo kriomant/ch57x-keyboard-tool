@@ -2,9 +2,9 @@ use anyhow::{bail, ensure, Result};
 use log::debug;
 use rusb::{Context, DeviceHandle};
 
-use crate::keyboard::Accord;
+use crate::keyboard::{Accord, MouseEvent, ScrollDirection};
 
-use super::{Key, Keyboard, Macro, MouseAction, MouseEvent};
+use super::{Key, Keyboard, Macro, MouseAction};
 
 pub struct Keyboard884x {
     handle: DeviceHandle<Context>,
@@ -49,14 +49,17 @@ impl Keyboard for Keyboard884x {
                 let [low, high] = (*code as u16).to_le_bytes();
                 msg.extend_from_slice(&[0, low, high, 0, 0, 0, 0]);
             }
-            Macro::Mouse(MouseEvent(MouseAction::Click(buttons), _)) => {
-                ensure!(!buttons.is_empty(), "buttons must be given for click macro");
-                msg.extend_from_slice(&[0x01, 0, buttons.as_u8()]);
+            Macro::Mouse(MouseEvent(MouseAction::Move(dx, dy), modifier)) => {
+                msg.extend_from_slice(&[0x05, modifier.map_or(0, |m| m as u8), 0, *dx as u8, *dy as u8]);
             }
-            Macro::Mouse(MouseEvent(MouseAction::WheelUp, modifier)) => {
+            Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
+                ensure!(!buttons.is_empty(), "buttons must be given for click macro");
+                msg.extend_from_slice(&[0x01, modifier.map_or(0, |m| m as u8), buttons.as_u8()]);
+            }
+            Macro::Mouse(MouseEvent(MouseAction::Scroll(ScrollDirection::Up), modifier)) => {
                 msg.extend_from_slice(&[0x03, modifier.map_or(0, |m| m as u8), 0, 0, 0, 0x1]);
             }
-            Macro::Mouse(MouseEvent(MouseAction::WheelDown, modifier)) => {
+            Macro::Mouse(MouseEvent(MouseAction::Scroll(ScrollDirection::Down), modifier)) => {
                 msg.extend_from_slice(&[0x03, modifier.map_or(0, |m| m as u8), 0, 0, 0, 0xff]);
             }
         };

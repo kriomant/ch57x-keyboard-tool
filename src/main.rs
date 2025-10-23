@@ -9,7 +9,7 @@ use std::io::{BufReader, Read, StdinLock};
 use crate::config::Config;
 use crate::consts::PRODUCT_IDS;
 use crate::keyboard::{
-    k884x, k8890, Keyboard, KnobAction, MediaCode, Modifier, MouseAction, MouseButton,
+    k884x, k8890, Keyboard, KnobAction, MediaCode, Modifier, MouseButton,
     WellKnownCode,
 };
 use crate::options::{Command, LedCommand};
@@ -56,11 +56,12 @@ fn main() -> Result<()> {
 
             println!();
             println!("Mouse actions:");
-            println!(" - {}", MouseAction::WheelDown);
-            println!(" - {}", MouseAction::WheelUp);
+            println!(" - wheelup");
+            println!(" - wheeldown");
             for b in MouseButton::iter() {
                 println!(" - {b}");
             }
+            println!(" - move(5,0)");
         }
 
         Command::Validate(params) => {

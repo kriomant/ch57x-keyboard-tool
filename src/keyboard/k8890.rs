@@ -2,7 +2,9 @@ use anyhow::{ensure, Result};
 use log::debug;
 use rusb::{Context, DeviceHandle};
 
-use super::{Key, Keyboard, Macro, MouseAction, MouseEvent};
+use crate::keyboard::{MouseEvent, ScrollDirection};
+
+use super::{Key, Keyboard, Macro, MouseAction};
 
 pub struct Keyboard8890 {
     handle: DeviceHandle<Context>,
@@ -42,14 +44,17 @@ impl Keyboard for Keyboard8890 {
                 let [low, high] = (*code as u16).to_le_bytes();
                 self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x02, low, high, 0, 0, 0, 0])?;
             }
+            Macro::Mouse(MouseEvent(MouseAction::Move(dx, dy), modifier)) => {
+                self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, *dx as u8, *dy as u8, 0, modifier.map_or(0, |m| m as u8), 0])?;
+            }
             Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
                 ensure!(!buttons.is_empty(), "buttons must be given for click macro");
                 self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0])?;
             }
-            Macro::Mouse(MouseEvent(MouseAction::WheelUp, modifier)) => {
+            Macro::Mouse(MouseEvent(MouseAction::Scroll(ScrollDirection::Up), modifier)) => {
                 self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0x01, modifier.map_or(0, |m| m as u8), 0])?;
             }
-            Macro::Mouse(MouseEvent(MouseAction::WheelDown, modifier)) => {
+            Macro::Mouse(MouseEvent(MouseAction::Scroll(ScrollDirection::Down), modifier)) => {
                 self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0xff, modifier.map_or(0, |m| m as u8), 0])?;
             }
         };

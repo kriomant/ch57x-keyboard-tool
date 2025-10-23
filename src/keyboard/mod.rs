@@ -340,20 +340,33 @@ pub enum MouseButton {
 pub type MouseButtons = EnumSet<MouseButton>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScrollDirection {
+    Up,
+    Down,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MouseAction {
+    Move(i8, i8),
     Click(MouseButtons),
-    WheelUp,
-    WheelDown,
+    Scroll(ScrollDirection),
 }
 
 impl Display for MouseAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            MouseAction::Move(dx, dy) => {
+                write!(f, "move({},{})", dx, dy)?;
+            }
             MouseAction::Click(buttons) => {
                 write!(f, "{}", buttons.iter().format("+"))?;
             }
-            MouseAction::WheelUp => { write!(f, "wheelup")?; }
-            MouseAction::WheelDown => { write!(f, "wheeldown")?; }
+            MouseAction::Scroll(direction) => {
+                match direction {
+                    ScrollDirection::Up => write!(f, "wheelup")?,
+                    ScrollDirection::Down => write!(f, "wheelup")?,
+                }
+            }
         }
         Ok(())
     }
