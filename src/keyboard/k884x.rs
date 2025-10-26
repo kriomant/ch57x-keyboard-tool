@@ -2,7 +2,7 @@ use anyhow::{bail, ensure, Result};
 use log::debug;
 use rusb::{Context, DeviceHandle};
 
-use crate::keyboard::{Accord, MouseEvent, ScrollDirection};
+use crate::keyboard::{Accord, MouseEvent};
 
 use super::{Key, Keyboard, Macro, MouseAction};
 
@@ -59,11 +59,8 @@ impl Keyboard for Keyboard884x {
                 ensure!(!buttons.is_empty(), "buttons must be given for click macro");
                 msg.extend_from_slice(&[0x01, modifier.map_or(0, |m| m as u8), buttons.as_u8()]);
             }
-            Macro::Mouse(MouseEvent(MouseAction::Scroll(ScrollDirection::Up), modifier)) => {
-                msg.extend_from_slice(&[0x03, modifier.map_or(0, |m| m as u8), 0, 0, 0, 0x1]);
-            }
-            Macro::Mouse(MouseEvent(MouseAction::Scroll(ScrollDirection::Down), modifier)) => {
-                msg.extend_from_slice(&[0x03, modifier.map_or(0, |m| m as u8), 0, 0, 0, 0xff]);
+            Macro::Mouse(MouseEvent(MouseAction::Scroll(delta), modifier)) => {
+                msg.extend_from_slice(&[0x03, modifier.map_or(0, |m| m as u8), 0, 0, 0, *delta as u8]);
             }
         };
 

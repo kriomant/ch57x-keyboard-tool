@@ -339,17 +339,11 @@ pub enum MouseButton {
 pub type MouseButtons = EnumSet<MouseButton>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ScrollDirection {
-    Up,
-    Down,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MouseAction {
     Move(i8, i8),
     Drag(MouseButtons, i8, i8),
     Click(MouseButtons),
-    Scroll(ScrollDirection),
+    Scroll(i8),
 }
 
 impl Display for MouseAction {
@@ -364,11 +358,8 @@ impl Display for MouseAction {
             MouseAction::Click(buttons) => {
                 write!(f, "{}", buttons.iter().format("+"))?;
             }
-            MouseAction::Scroll(direction) => {
-                match direction {
-                    ScrollDirection::Up => write!(f, "wheelup")?,
-                    ScrollDirection::Down => write!(f, "wheelup")?,
-                }
+            MouseAction::Scroll(value) => {
+                write!(f, "scroll({})", value)?;
             }
         }
         Ok(())

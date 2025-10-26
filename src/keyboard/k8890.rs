@@ -2,7 +2,7 @@ use anyhow::{ensure, Result};
 use log::debug;
 use rusb::{Context, DeviceHandle};
 
-use crate::keyboard::{MouseEvent, ScrollDirection};
+use crate::keyboard::MouseEvent;
 
 use super::{Key, Keyboard, Macro, MouseAction};
 
@@ -54,11 +54,8 @@ impl Keyboard for Keyboard8890 {
                 ensure!(!buttons.is_empty(), "buttons must be given for click macro");
                 self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0])?;
             }
-            Macro::Mouse(MouseEvent(MouseAction::Scroll(ScrollDirection::Up), modifier)) => {
-                self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0x01, modifier.map_or(0, |m| m as u8), 0])?;
-            }
-            Macro::Mouse(MouseEvent(MouseAction::Scroll(ScrollDirection::Down), modifier)) => {
-                self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0xff, modifier.map_or(0, |m| m as u8), 0])?;
+            Macro::Mouse(MouseEvent(MouseAction::Scroll(delta), modifier)) => {
+                self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, 0, 0, *delta as u8, modifier.map_or(0, |m| m as u8), 0])?;
             }
         };
 

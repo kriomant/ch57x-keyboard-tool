@@ -56,8 +56,7 @@ fn main() -> Result<()> {
 
             println!();
             println!("Mouse actions:");
-            println!(" - wheelup");
-            println!(" - wheeldown");
+            println!(" - scroll(-100)");
             println!(" - click(left+right)");
             println!(" - move(5,0)");
             println!(" - drag(left+right,0,5)");

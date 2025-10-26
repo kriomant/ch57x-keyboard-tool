@@ -9,7 +9,7 @@ use nom::{
     IResult, InputLength, Parser, branch::alt, bytes::complete::tag, character::complete::{alpha1, alphanumeric1, char, digit1}, combinator::{all_consuming, cut, map, map_res, opt, recognize, value}, error::ParseError, multi::{fold_many0, separated_list1}, sequence::{delimited, pair, separated_pair, terminated, tuple}
 };
 
-use crate::keyboard::{Accord, Code, Macro, MediaCode, Modifier, Modifiers, MouseAction, MouseButton, MouseButtons, MouseEvent, MouseModifier, ScrollDirection, WellKnownCode};
+use crate::keyboard::{Accord, Code, Macro, MediaCode, Modifier, Modifiers, MouseAction, MouseButton, MouseButtons, MouseEvent, MouseModifier, WellKnownCode};
 
 use std::str::FromStr;
 
@@ -117,14 +117,11 @@ fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
         ),
         |(buttons, x, y)| MouseAction::Drag(buttons, x, y),
     );
-    let scroll_direction = alt((
-        value(ScrollDirection::Up, tag("wheelup")),
-        value(ScrollDirection::Down, tag("wheeldown")),
+    let scroll = alt((
+        map(delimited(tag("scroll("), delta, tag(")")), MouseAction::Scroll),
+        value(MouseAction::Scroll(1), tag("wheelup")),
+        value(MouseAction::Scroll(-1), tag("wheeldown")),
     ));
-    let scroll = map(
-        scroll_direction,
-        MouseAction::Scroll,
-    );
 
     let mut event = map(
         tuple((
@@ -178,7 +175,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::keyboard::{Accord, Code, Macro, MediaCode, Modifier, Modifiers, MouseAction, MouseButton, MouseEvent, MouseModifier, ScrollDirection, WellKnownCode};
+    use crate::keyboard::{Accord, Code, Macro, MediaCode, Modifier, Modifiers, MouseAction, MouseButton, MouseEvent, MouseModifier, WellKnownCode};
 
     #[test]
     fn parse_custom_code() {
@@ -216,7 +213,7 @@ mod tests {
             MouseEvent(MouseAction::Click(MouseButton::Left | MouseButton::Right), None)
         )));
         assert_eq!("ctrl-wheelup".parse(), Ok(Macro::Mouse(
-            MouseEvent(MouseAction::Scroll(ScrollDirection::Up), Some(MouseModifier::Ctrl))
+            MouseEvent(MouseAction::Scroll(1), Some(MouseModifier::Ctrl))
         )));
         assert_eq!("ctrl-click".parse(), Ok(Macro::Mouse(
             MouseEvent(MouseAction::Click(MouseButton::Left.into()), Some(MouseModifier::Ctrl))
@@ -272,6 +269,19 @@ mod tests {
         )));
         assert_eq!("shift-drag(left+middle,0,0)".parse(), Ok(Macro::Mouse(
             MouseEvent(MouseAction::Drag(MouseButton::Left | MouseButton::Middle, 0, 0), Some(MouseModifier::Shift))
+        )));
+    }
+
+    #[test]
+    fn parse_scroll_syntax() {
+        assert_eq!("scroll(1)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Scroll(1), None)
+        )));
+        assert_eq!("scroll(-5)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Scroll(-5), None)
+        )));
+        assert_eq!("ctrl-scroll(3)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Scroll(3), Some(MouseModifier::Ctrl))
         )));
     }
 }
