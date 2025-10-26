@@ -88,14 +88,28 @@ fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
         |(x,y)| MouseAction::Move(x, y),
     );
 
-    let button = alt((
+    let click = alt((
         value(MouseButton::Left, alt((tag("click"), tag("lclick")))),
         value(MouseButton::Right, tag("rclick")),
         value(MouseButton::Middle, tag("mclick")),
     ));
-    let buttons = map(separated_list1(char('+'), button), MouseButtons::from_iter);
-    let click = map(buttons, MouseAction::Click);
+    let clicks = map(separated_list1(char('+'), click), MouseButtons::from_iter);
+    let click_action = map(clicks, MouseAction::Click);
 
+    let mouse_button = map_res(alpha1, MouseButton::from_str);
+    let mouse_buttons = map(separated_list1(char('+'), mouse_button), MouseButtons::from_iter);
+    let mouse_drag = map(
+        delimited(
+            tag("drag("),
+            cut(tuple((
+                terminated(mouse_buttons, tag(",")),
+                terminated(delta, tag(",")),
+                delta,
+            ))),
+            tag(")"),
+        ),
+        |(buttons, x, y)| MouseAction::Drag(buttons, x, y),
+    );
     let scroll_direction = alt((
         value(ScrollDirection::Up, tag("wheelup")),
         value(ScrollDirection::Down, tag("wheeldown")),
@@ -108,7 +122,7 @@ fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
     let mut event = map(
         tuple((
             opt(terminated(mouse_modifier, char('-'))),
-            alt((click, scroll, mouse_move)),
+            alt((click_action, scroll, mouse_move, mouse_drag)),
         )),
         |(modifier, action)| MouseEvent(action, modifier)
     );
@@ -217,6 +231,22 @@ mod tests {
         )));
         assert_eq!("ctrl-move(-5,10)".parse(), Ok(Macro::Mouse(
             MouseEvent(MouseAction::Move(-5, 10), Some(MouseModifier::Ctrl))
+        )));
+    }
+
+    #[test]
+    fn parse_mouse_drag() {
+        assert_eq!("drag(left,1,2)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Drag(MouseButton::Left.into(), 1, 2), None)
+        )));
+        assert_eq!("drag(left+right,5,-3)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Drag(MouseButton::Left | MouseButton::Right, 5, -3), None)
+        )));
+        assert_eq!("ctrl-drag(middle,-10,15)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Drag(MouseButton::Middle.into(), -10, 15), Some(MouseModifier::Ctrl))
+        )));
+        assert_eq!("shift-drag(left+middle,0,0)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Drag(MouseButton::Left | MouseButton::Middle, 0, 0), Some(MouseModifier::Shift))
         )));
     }
 }

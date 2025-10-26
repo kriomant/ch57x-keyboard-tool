@@ -52,6 +52,9 @@ impl Keyboard for Keyboard884x {
             Macro::Mouse(MouseEvent(MouseAction::Move(dx, dy), modifier)) => {
                 msg.extend_from_slice(&[0x05, modifier.map_or(0, |m| m as u8), 0, *dx as u8, *dy as u8]);
             }
+            Macro::Mouse(MouseEvent(MouseAction::Drag(buttons, dx, dy), modifier)) => {
+                msg.extend_from_slice(&[0x05, modifier.map_or(0, |m| m as u8), buttons.as_u8(), *dx as u8, *dy as u8]);
+            }
             Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
                 ensure!(!buttons.is_empty(), "buttons must be given for click macro");
                 msg.extend_from_slice(&[0x01, modifier.map_or(0, |m| m as u8), buttons.as_u8()]);

@@ -47,6 +47,9 @@ impl Keyboard for Keyboard8890 {
             Macro::Mouse(MouseEvent(MouseAction::Move(dx, dy), modifier)) => {
                 self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, 0, *dx as u8, *dy as u8, 0, modifier.map_or(0, |m| m as u8), 0])?;
             }
+            Macro::Mouse(MouseEvent(MouseAction::Drag(buttons, dx, dy), modifier)) => {
+                self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, buttons.as_u8(), *dx as u8, *dy as u8, 0, modifier.map_or(0, |m| m as u8), 0])?;
+            }
             Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
                 ensure!(!buttons.is_empty(), "buttons must be given for click macro");
                 self.send(&[0x03, key.to_key_id(12)?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0])?;

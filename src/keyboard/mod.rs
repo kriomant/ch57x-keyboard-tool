@@ -327,13 +327,12 @@ pub enum MouseModifier {
     Alt = 0x04,
 }
 
-#[derive(Debug, EnumSetType, EnumIter, Display)]
+#[derive(Debug, EnumSetType, EnumIter, EnumString, Display)]
+#[strum(serialize_all="lowercase")]
+#[strum(ascii_case_insensitive)]
 pub enum MouseButton {
-    #[strum(serialize="click")]
     Left,
-    #[strum(serialize="rclick")]
     Right,
-    #[strum(serialize="mclick")]
     Middle
 }
 
@@ -348,6 +347,7 @@ pub enum ScrollDirection {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MouseAction {
     Move(i8, i8),
+    Drag(MouseButtons, i8, i8),
     Click(MouseButtons),
     Scroll(ScrollDirection),
 }
@@ -357,6 +357,9 @@ impl Display for MouseAction {
         match self {
             MouseAction::Move(dx, dy) => {
                 write!(f, "move({},{})", dx, dy)?;
+            }
+            MouseAction::Drag(buttons, dx, dy) => {
+                write!(f, "drag({},{},{})", buttons.iter().format("+"), dx, dy)?;
             }
             MouseAction::Click(buttons) => {
                 write!(f, "{}", buttons.iter().format("+"))?;
