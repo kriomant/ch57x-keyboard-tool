@@ -78,6 +78,12 @@ pub fn delta(s: &str) -> IResult<&str, i8> {
     parser(s)
 }
 
+fn mouse_buttons(s: &str) -> IResult<&str, MouseButtons> {
+    let mouse_button = map_res(alpha1, MouseButton::from_str);
+    let mut parser = map(separated_list1(char('+'), mouse_button), MouseButtons::from_iter);
+    parser(s)
+}
+
 fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
     let mouse_move = map(
         delimited(
@@ -93,11 +99,12 @@ fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
         value(MouseButton::Right, tag("rclick")),
         value(MouseButton::Middle, tag("mclick")),
     ));
-    let clicks = map(separated_list1(char('+'), click), MouseButtons::from_iter);
+    let clicks = alt((
+        delimited(tag("click("), mouse_buttons, tag(")")),
+        map(separated_list1(char('+'), click), MouseButtons::from_iter),
+    ));
     let click_action = map(clicks, MouseAction::Click);
 
-    let mouse_button = map_res(alpha1, MouseButton::from_str);
-    let mouse_buttons = map(separated_list1(char('+'), mouse_button), MouseButtons::from_iter);
     let mouse_drag = map(
         delimited(
             tag("drag("),
@@ -213,6 +220,24 @@ mod tests {
         )));
         assert_eq!("ctrl-click".parse(), Ok(Macro::Mouse(
             MouseEvent(MouseAction::Click(MouseButton::Left.into()), Some(MouseModifier::Ctrl))
+        )));
+    }
+
+    #[test]
+    fn parse_click_syntax() {
+        // Test new click(...) syntax with single button
+        assert_eq!("click(left)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Click(MouseButton::Left.into()), None)
+        )));
+
+        // Test new click(...) syntax with multiple buttons
+        assert_eq!("click(left+right)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Click(MouseButton::Left | MouseButton::Right), None)
+        )));
+
+        // Test new click(...) syntax with modifier
+        assert_eq!("ctrl-click(middle)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Click(MouseButton::Middle.into()), Some(MouseModifier::Ctrl))
         )));
     }
 

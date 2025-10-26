@@ -333,7 +333,7 @@ pub enum MouseModifier {
 pub enum MouseButton {
     Left,
     Right,
-    Middle
+    Middle,
 }
 
 pub type MouseButtons = EnumSet<MouseButton>;
