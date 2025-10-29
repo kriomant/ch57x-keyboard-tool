@@ -1,5 +1,6 @@
 pub(crate) mod k884x;
 pub(crate) mod k8890;
+pub(crate) mod k8850_4x4;
 
 use crate::parse;
 
@@ -23,9 +24,10 @@ pub trait Keyboard {
     fn preferred_endpoint() -> u8 where Self: Sized;
     fn get_handle(&self) -> &DeviceHandle<Context>;
     fn get_endpoint(&self) -> u8;
+    fn get_payload_size(&self) -> usize { 64 }
 
     fn send(&mut self, msg: &[u8]) -> Result<()> {
-        let mut buf = [0; 64];
+        let mut buf = vec![0; self.get_payload_size()];
         buf[..msg.len()].copy_from_slice(msg);
 
         debug!("send: {:02x?}", buf);
