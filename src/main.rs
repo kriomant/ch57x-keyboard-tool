@@ -106,12 +106,14 @@ fn main() -> Result<()> {
             send_to_device(&handle, endpoint, &output)?;
         }
 
-        Command::Led(LedCommand { index }) => {
+        Command::Led(LedCommand { mut args }) => {
             let (handle, endpoint, id_product) = open_device(&options.devel_options)?;
             // TODO: fix this dirty hack
-            let keyboard = create_driver(id_product, 0, 0)?;
+            let mut keyboard = create_driver(id_product, 0, 0)?;
             let mut output = Vec::new();
-            keyboard.set_led(index, &mut output)?;
+            
+            args.insert(0, "led".to_string());
+            keyboard.set_led(&args, &mut output)?;
             send_to_device(&handle, endpoint, &output)?;
         }
     }

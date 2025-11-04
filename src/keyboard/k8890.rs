@@ -1,9 +1,16 @@
 use anyhow::{ensure, Result};
+use clap::Parser;
 
 use crate::keyboard::MouseEvent;
 use super::{Key, Keyboard, Macro, MouseAction, send_message};
 
 pub struct Keyboard8890;
+
+#[derive(Parser, Debug)]
+struct LedArgs {
+    /// LED mode
+    mode: u8,
+}
 
 impl Keyboard for Keyboard8890 {
     fn bind_key(&self, layer: u8, key: Key, expansion: &Macro, output: &mut Vec<u8>) -> Result<()> {
@@ -57,9 +64,10 @@ impl Keyboard for Keyboard8890 {
         Ok(())
     }
 
-    fn set_led(&self, n: u8, output: &mut Vec<u8>) -> Result<()> {
+    fn set_led(&mut self, args: &[String], output: &mut Vec<u8>) -> Result<()> {
+        let args = LedArgs::try_parse_from(args)?;
         send_message(output, &[0x03, 0xa1, 0x01, 0, 0, 0, 0, 0, 0]);
-        send_message(output, &[0x03, 0xb0, 0x18, n, 0, 0, 0, 0, 0]);
+        send_message(output, &[0x03, 0xb0, 0x18, args.mode, 0, 0, 0, 0, 0]);
         send_message(output, &[0x03, 0xaa, 0xa1, 0, 0, 0, 0, 0, 0]);
         Ok(())
     }

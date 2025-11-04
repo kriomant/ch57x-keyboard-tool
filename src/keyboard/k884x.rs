@@ -67,7 +67,7 @@ impl Keyboard for Keyboard884x {
         Ok(())
     }
 
-    fn set_led(&self, _n: u8, _output: &mut Vec<u8>) -> Result<()> {
+    fn set_led(&mut self, _args: &[String], _output: &mut Vec<u8>) -> Result<()> {
         bail!(
             "If you have a device which supports backlight LEDs, please let us know at \
                https://github.com/kriomant/ch57x-keyboard-tool/issues/60. We'll be glad to \

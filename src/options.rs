@@ -70,6 +70,6 @@ pub struct ConfigParams {
 
 #[derive(Parser)]
 pub struct LedCommand {
-    /// Index of LED mode (zero-based)
-    pub index: u8,
+    #[arg(num_args=0.., allow_hyphen_values=true)]
+    pub args: Vec<String>,
 }
