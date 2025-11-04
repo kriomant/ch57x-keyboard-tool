@@ -137,11 +137,25 @@ sudo udevadm trigger
 
 ### Change LED configuration
 
-If your keyboard supports it, you can change the LED configuration:
+If your keyboard supports it, you can change the LED configuration.
 
-```shell
-# Turn off the LED
-./ch57x-keyboard-tool led 0
+**Note:** LED command arguments are model-specific. Different keyboard models have different LED capabilities.
+
+#### 0x8840 and 0x8842
+
+Syntax: `./ch57x-keyboard-tool led <layer> <mode>...`
+
+Modes:
+- `off` - LEDs off
+- `backlight <color>` - backlight always on with color
+- `shock <color>` - no backlight, shock effect with color when key pressed
+- `shock2 <color>` - no backlight, shock2 effect with color when key pressed
+- `press <color>` - no backlight, light up key with color when pressed
+
+Supported key colors: *red*, *orange*, *yellow*, *green*, *cyan*, *blue*, *purple*.
+Backlight additionally supports *white*.
+
+#### 0x8890
 
 # Set the LED to the first mode (likely "Steady on")
 ./ch57x-keyboard-tool led 1
@@ -219,7 +233,7 @@ Commands and their descriptions:
 | `show-keys`            | Display a list of all supported keys and modifiers        |
 | `validate`             | Validate key mappings config from stdin                   |
 | `upload`               | Upload key mappings from stdin to the device              |
-| `led`                  | Select LED backlight mode                                 |
+| `led`                  | Configure LED backlight (model-specific arguments)        |
 | `help`, `-h`, `--help` | Print this message or the help of the given subcommand(s) |
 
 Advanced options, you don't have to use this normally:

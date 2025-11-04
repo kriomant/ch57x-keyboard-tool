@@ -1,7 +1,109 @@
-use anyhow::{bail, ensure, Result};
+use std::str::FromStr;
 
-use crate::keyboard::{Accord, MouseEvent};
+use anyhow::{ensure, Result};
+use clap::Parser;
+use nom::{IResult, branch::alt, bytes::complete::tag, character::complete::alpha1, combinator::{map, map_res, value}, sequence::preceded};
+use strum_macros::EnumString;
+
+use crate::{keyboard::{Accord, MouseEvent}, parse::from_str};
+
 use super::{Key, Keyboard, Macro, MouseAction, send_message};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString)]
+#[strum(serialize_all = "lowercase")]
+#[repr(u8)]
+pub enum LedColor {
+    Red = 1,
+    Orange = 2,
+    Yellow = 3,
+    Green = 4,
+    Cyan = 5,
+    Blue = 6,
+    Purple = 7,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString)]
+#[strum(serialize_all = "lowercase")]
+#[repr(u8)]
+pub enum LedBacklightColor {
+    White = 0,
+    Red = 1,
+    Orange = 2,
+    Yellow = 3,
+    Green = 4,
+    Cyan = 5,
+    Blue = 6,
+    Purple = 7,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LedMode {
+    /// LEDs off
+    Off,
+    /// Backlight always on with specified color
+    Backlight(LedBacklightColor),
+    /// No backlight, shock effect with specified color when key pressed
+    Shock(LedColor),
+    /// No backlight, shock2 effect with specified color when key pressed
+    Shock2(LedColor),
+    /// No backlight, light up key with specified color when pressed
+    Press(LedColor),
+}
+
+impl FromStr for LedMode {
+    type Err = nom::error::Error<String>;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        crate::parse::from_str(led_mode, s)
+    }
+}
+
+impl LedMode {
+    fn code(&self) -> u8 {
+        let (mode, color) = match *self {
+            LedMode::Off => (0, 0),
+            LedMode::Backlight(LedBacklightColor::White) => (5, 0),
+            LedMode::Backlight(color) => (1, color as u8),
+            LedMode::Shock(color) => (2, color as u8),
+            LedMode::Shock2(color) => (3, color as u8),
+            LedMode::Press(color) => (4, color as u8),
+        };
+        (color << 4) | mode
+    }
+}
+
+fn led_backlight_color(s: &str) -> IResult<&str, LedBacklightColor> {
+    map_res(alpha1, LedBacklightColor::from_str)(s)
+}
+
+fn led_color(s: &str) -> IResult<&str, LedColor> {
+    map_res(alpha1, LedColor::from_str)(s)
+}
+
+fn led_mode(s: &str) -> IResult<&str, LedMode> {
+    let mut mode = alt((
+        value(LedMode::Off, tag("off")),
+        map(preceded(tag("backlight "), led_backlight_color), LedMode::Backlight),
+        map(preceded(tag("shock2 "), led_color), LedMode::Shock2),
+        map(preceded(tag("shock "), led_color), LedMode::Shock),
+        map(preceded(tag("press "), led_color), LedMode::Press),
+    ));
+    mode(s)
+}
+
+fn parse_led_mode(s: &str) -> Result<LedMode, String> {
+    from_str(led_mode, s).map_err(|e| format!("Invalid LED mode: {:?}", e))
+}
+
+#[derive(Parser, Debug)]
+struct LedArgs {
+    /// Layer to set the LED (0-based)
+    layer: u8,
+
+    /// LED mode
+    #[arg(value_parser=parse_led_mode)]
+    mode: LedMode,
+}
 
 pub struct Keyboard884x {
     buttons: u8,
@@ -67,12 +169,23 @@ impl Keyboard for Keyboard884x {
         Ok(())
     }
 
-    fn set_led(&mut self, _args: &[String], _output: &mut Vec<u8>) -> Result<()> {
-        bail!(
-            "If you have a device which supports backlight LEDs, please let us know at \
-               https://github.com/kriomant/ch57x-keyboard-tool/issues/60. We'll be glad to \
-               help you reverse-engineer it."
-        )
+    fn set_led(&mut self, args: &[String], output: &mut Vec<u8>) -> Result<()> {
+        let led_args = LedArgs::try_parse_from(
+            std::iter::once("led".to_string()).chain(args.iter().cloned())
+        )?;
+
+        let layer = led_args.layer;
+        ensure!(layer < 3, "Layer must be 0-2");
+
+        let code = led_args.mode.code();
+
+        // Program LED settings
+        send_message(output, &[0x03, 0xfe, 0xb0, layer+1, 0x08, 0x00, 0x05, 0x01, 0x00, code, 0x00, 0x34]);
+
+        // End programming sequence
+        send_message(output, &[0x03, 0xfd, 0xfe, 0xff, 0x00, 0x3d]);
+
+        Ok(())
     }
 
     fn preferred_endpoint() -> u8 {
@@ -303,5 +416,29 @@ mod tests {
             ],
             &[0x03, 0xfd, 0xfe, 0xff],
         ]);
+    }
+
+    #[test]
+    fn parse_led_mode() {
+        assert_eq!("off".parse(), Ok(LedMode::Off));
+        assert_eq!("backlight white".parse(), Ok(LedMode::Backlight(LedBacklightColor::White)));
+        assert_eq!("backlight red".parse(), Ok(LedMode::Backlight(LedBacklightColor::Red)));
+        assert_eq!("shock purple".parse(), Ok(LedMode::Shock(LedColor::Purple)));
+        assert_eq!("shock2 yellow".parse(), Ok(LedMode::Shock2(LedColor::Yellow)));
+        assert_eq!("press green".parse(), Ok(LedMode::Press(LedColor::Green)));
+
+        assert!("press black".parse::<LedMode>().is_err());
+        assert!("boom red".parse::<LedMode>().is_err());
+    }
+
+    #[test]
+    fn test_led_mode_code_encoding() {
+        assert_eq!(LedMode::Off.code(), 0x00);
+        assert_eq!(LedMode::Backlight(LedBacklightColor::White).code(), 0x05);
+        assert_eq!(LedMode::Backlight(LedBacklightColor::Red).code(), 0x11);
+        assert_eq!(LedMode::Backlight(LedBacklightColor::Blue).code(), 0x61);
+        assert_eq!(LedMode::Shock(LedColor::Red).code(), 0x12);
+        assert_eq!(LedMode::Shock2(LedColor::Green).code(), 0x43);
+        assert_eq!(LedMode::Press(LedColor::Purple).code(), 0x74);
     }
 }
