@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.6.0
+
 - Described udev configuration to avoid using sudo
 - Added aarch64 build target for devices like Raspberry Pi (#151)
 - Added aliases to keys changing screen brightness on Mac
