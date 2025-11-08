@@ -17,7 +17,7 @@
     * [Windows / PowerShell](#windows--powershell)
 * [FAQ](#faq)
     * [How to do … on key press?](#how-to-do--on-key-press)
-    * [Can you implement … feature?](#can-you-implement--feature)
+    * [Can you implement … feature?](#can-you-implement--feature)
 * [Notes](#notes)
     * [Number of layers](#number-of-layers)
     * [Custom keyboard layouts](#custom-keyboard-layouts)
@@ -85,6 +85,7 @@ Install [USBDK](https://github.com/daynix/UsbDk/releases).
 ## Usage
 
 1. Connect the keyboard to the computer with a USB cable.
+2. Study [available actions](doc/actions.md).
 2. Create a configuration file based on the provided [example-mapping.yaml](example-mapping.yaml).
 3. Validate the configuration file.
 4. Upload the configuration to the keyboard.

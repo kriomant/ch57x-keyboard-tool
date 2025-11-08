@@ -1,3 +1,7 @@
+# See 'doc/actions.md' for description of available actions which
+# may be assigned to keys. Comments here describe only configuration
+# file format itself.
+
 # Normal keyboard orientation is when
 # buttons are on the left side and knobs are on the right.
 # However, you may want to use the keyboard in another orientation.
@@ -27,14 +31,6 @@ layers:
       # Array of buttons.
       # In horizontal orientations it's `rows` rows `columns` buttons each.
       # In vertical: `columns` rows `rows` buttons each.
-      # Each entry is either a sequence of 'chords' or a mouse event.
-      # A chord is a combination of one key with optional modifiers,
-      # like 'b', 'ctrl-alt-a' or 'win-rctrl-backspace'.
-      # It can also be just modifiers without a key: 'ctrl-alt'.
-      # You may combine up to 5 chords into a sequence using commas: 'ctrl-v,ctrl-c'.
-      # Arbitrary HID usage codes (decimal) may be given like this: '<101>'.
-      # See https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf (section 10)
-      # for HID usage code list.
       - ["a", "ctrl-a", "alt-shift", "alt-ctrl,ctrl-b"]
       - ["e", "f", "g", "h"]
       - ["<100>", "j", "k", "l"]
@@ -51,13 +47,10 @@ layers:
         cw: "shift-wheeldown"
 
   - buttons:
-      # Mouse events are clicks ('click/lclick', 'rclick', 'mclick') or
-      # wheel events ('wheelup', 'wheeldown') with one optional modifier,
-      # only 'ctrl', 'shift' and 'alt' are supported ('ctrl-wheeldown').
-      # Clicks may combine several buttons, like this: 'click+rclick'.
-      - ["click", "lclick", "rclick", "mclick"]
-      - ["click+rclick", "wheeldown", "shift-wheelup", "ctrl-wheelup"]
-      - ["alt-wheelup", "ctrl-click", "wheelup", "wheelup"]
+      # Mouse events
+      - ["click", "click(middle)", "click+rclick", "ctrl-mclick"]
+      - ["move(0,10)", "alt-drag(right,10,0)", "ctrl-move(5,5)", "ctrl-wheelup"]
+      - ["alt-wheel(1)", "ctrl-click", "wheelup", "wheelup"]
     knobs:
       - ccw: "left"
         press: "enter"
