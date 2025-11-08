@@ -8,7 +8,7 @@
 - Mouse move action
 - Mouse drag action
 - Alternative syntax for click action
-- New 'scroll' action
+- New 'wheel' action
 - Added support for fourth knob on 8850 model
 - LED control for 884x
 

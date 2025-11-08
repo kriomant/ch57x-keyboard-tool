@@ -53,7 +53,7 @@ impl Keyboard for Keyboard8890 {
                 ensure!(!buttons.is_empty(), "buttons must be given for click macro");
                 send_message(output, &[0x03, self.to_key_id(key)?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0]);
             }
-            Macro::Mouse(MouseEvent(MouseAction::Scroll(delta), modifier)) => {
+            Macro::Mouse(MouseEvent(MouseAction::Wheel(delta), modifier)) => {
                 send_message(output, &[0x03, self.to_key_id(key)?, ((layer+1) << 4) | 0x03, 0, 0, 0, *delta as u8, modifier.map_or(0, |m| m as u8), 0]);
             }
         };
@@ -167,17 +167,17 @@ mod tests {
     }
 
     #[test]
-    fn test_mouse_scroll_bytes() {
+    fn test_mouse_wheel_bytes() {
         let keyboard = Keyboard8890::new();
         let mut output = Vec::new();
 
-        // Test mouse scroll (delta=3)
-        let mouse_scroll = Macro::Mouse(MouseEvent(MouseAction::Scroll(3), None));
-        keyboard.bind_key(0, Key::Button(4), &mouse_scroll, &mut output).unwrap();
+        // Test mouse wheel (delta=3)
+        let mouse_wheel = Macro::Mouse(MouseEvent(MouseAction::Wheel(3), None));
+        keyboard.bind_key(0, Key::Button(4), &mouse_wheel, &mut output).unwrap();
 
         assert_messages(&output, &[
             &[0x03, 0xfe, 0x01, 0x01, 0x01], // binding start
-            &[0x03, 0x05, 0x13, 0x00, 0x00, 0x00, 0x03, 0x00], // mouse scroll (delta=3)
+            &[0x03, 0x05, 0x13, 0x00, 0x00, 0x00, 0x03, 0x00], // mouse wheel (delta=3)
             &[0x03, 0xaa, 0xaa], // binding finish
         ]);
     }

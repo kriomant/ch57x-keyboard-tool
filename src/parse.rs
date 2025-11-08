@@ -117,16 +117,16 @@ fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
         ),
         |(buttons, x, y)| MouseAction::Drag(buttons, x, y),
     );
-    let scroll = alt((
-        map(delimited(tag("scroll("), delta, tag(")")), MouseAction::Scroll),
-        value(MouseAction::Scroll(1), tag("wheelup")),
-        value(MouseAction::Scroll(-1), tag("wheeldown")),
+    let wheel = alt((
+        map(delimited(tag("wheel("), delta, tag(")")), MouseAction::Wheel),
+        value(MouseAction::Wheel(1), tag("wheelup")),
+        value(MouseAction::Wheel(-1), tag("wheeldown")),
     ));
 
     let mut event = map(
         tuple((
             opt(terminated(mouse_modifier, char('-'))),
-            alt((click_action, scroll, mouse_move, mouse_drag)),
+            alt((click_action, wheel, mouse_move, mouse_drag)),
         )),
         |(modifier, action)| MouseEvent(action, modifier)
     );
@@ -213,7 +213,7 @@ mod tests {
             MouseEvent(MouseAction::Click(MouseButton::Left | MouseButton::Right), None)
         )));
         assert_eq!("ctrl-wheelup".parse(), Ok(Macro::Mouse(
-            MouseEvent(MouseAction::Scroll(1), Some(MouseModifier::Ctrl))
+            MouseEvent(MouseAction::Wheel(1), Some(MouseModifier::Ctrl))
         )));
         assert_eq!("ctrl-click".parse(), Ok(Macro::Mouse(
             MouseEvent(MouseAction::Click(MouseButton::Left.into()), Some(MouseModifier::Ctrl))
@@ -273,15 +273,15 @@ mod tests {
     }
 
     #[test]
-    fn parse_scroll_syntax() {
-        assert_eq!("scroll(1)".parse(), Ok(Macro::Mouse(
-            MouseEvent(MouseAction::Scroll(1), None)
+    fn parse_wheel_syntax() {
+        assert_eq!("wheel(1)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Wheel(1), None)
         )));
-        assert_eq!("scroll(-5)".parse(), Ok(Macro::Mouse(
-            MouseEvent(MouseAction::Scroll(-5), None)
+        assert_eq!("wheel(-5)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Wheel(-5), None)
         )));
-        assert_eq!("ctrl-scroll(3)".parse(), Ok(Macro::Mouse(
-            MouseEvent(MouseAction::Scroll(3), Some(MouseModifier::Ctrl))
+        assert_eq!("ctrl-wheel(3)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Wheel(3), Some(MouseModifier::Ctrl))
         )));
     }
 }

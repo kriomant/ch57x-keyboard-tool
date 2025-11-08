@@ -324,7 +324,7 @@ pub enum MouseAction {
     Move(i8, i8),
     Drag(MouseButtons, i8, i8),
     Click(MouseButtons),
-    Scroll(i8),
+    Wheel(i8),
 }
 
 impl Display for MouseAction {
@@ -339,8 +339,8 @@ impl Display for MouseAction {
             MouseAction::Click(buttons) => {
                 write!(f, "{}", buttons.iter().format("+"))?;
             }
-            MouseAction::Scroll(value) => {
-                write!(f, "scroll({})", value)?;
+            MouseAction::Wheel(value) => {
+                write!(f, "wheel({})", value)?;
             }
         }
         Ok(())
