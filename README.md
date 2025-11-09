@@ -160,13 +160,11 @@ Backlight additionally supports *white*.
 
 # Set the LED to the first mode (likely "Steady on")
 ./ch57x-keyboard-tool led 1
-```
 
 ### Windows / PowerShell
 
 Use `Get-Content` for input redirection:
-
-```shell
+```Powershell
 Get-Content your-config.yaml | ./ch57x-keyboard-tool validate
 ```
 
