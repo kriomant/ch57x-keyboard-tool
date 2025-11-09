@@ -164,7 +164,9 @@ impl Keyboard for Keyboard884x {
         send_message(output, &msg);
 
         // Finish key binding
+        send_message(output, &[0x03, 0xaa, 0xaa, 0, 0, 0, 0, 0, 0]);
         send_message(output, &[0x03, 0xfd, 0xfe, 0xff]);
+        send_message(output, &[0x03, 0xaa, 0xaa, 0, 0, 0, 0, 0, 0]);
 
         Ok(())
     }
@@ -249,7 +251,9 @@ mod tests {
                 0x01, // Ctrl modifier
                 0x04, // A key code
             ],
+            &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
+            &[0x03, 0xaa, 0xaa],
         ]);
     }
 
@@ -274,7 +278,9 @@ mod tests {
                 0xe9, // Volume Up code (low byte)
                 0x00, // Volume Up code (high byte)
             ],
+            &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
+            &[0x03, 0xaa, 0xaa],
         ]);
     }
 
@@ -300,7 +306,9 @@ mod tests {
                 0x01, // Left button pressed
                 0x00, 0x01,
             ],
+            &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
+            &[0x03, 0xaa, 0xaa],
         ]);
     }
 
@@ -327,7 +335,9 @@ mod tests {
                 0x0a, // dx=10
                 0xfb, // dy=-5 (as 251)
             ],
+            &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
+            &[0x03, 0xaa, 0xaa],
         ]);
     }
 
@@ -353,7 +363,9 @@ mod tests {
                 0x00, 0x00, 0x00,
                 0x03, // delta=3
             ],
+            &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
+            &[0x03, 0xaa, 0xaa],
         ]);
     }
 
@@ -382,7 +394,9 @@ mod tests {
                 0x05, // dx=5
                 0x0a, // dy=10
             ],
+            &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
+            &[0x03, 0xaa, 0xaa],
         ]);
     }
 
@@ -414,7 +428,9 @@ mod tests {
                 0x01,
                 0x00, 0x01,
             ],
+            &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
+            &[0x03, 0xaa, 0xaa],
         ]);
     }
 

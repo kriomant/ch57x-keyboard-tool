@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Try to fix lost of settings after disconnection for 8850
 - Fix handling fourth knob on 8850
 
 ## 1.6.0
