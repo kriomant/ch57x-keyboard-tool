@@ -1,9 +1,9 @@
-///! Collection of NOM parsers for various things.
-///! Generally only `parse` and `from_str` functions should be called
-///! from outside of this module, they ensures that whole input is
-///! consumed.
-///! Other functions are composable parsers for use within this module
-///! or as parameters for functions mentioned above.
+//! Collection of NOM parsers for various things.
+//! Generally only `parse` and `from_str` functions should be called
+//! from outside of this module, they ensures that whole input is
+//! consumed.
+//! Other functions are composable parsers for use within this module
+//! or as parameters for functions mentioned above.
 
 use nom::{
     IResult, InputLength, Parser, branch::alt, bytes::complete::tag, character::complete::{alpha1, alphanumeric1, char, digit1}, combinator::{all_consuming, cut, map, map_res, opt, recognize, value}, error::ParseError, multi::{fold_many0, separated_list1}, sequence::{delimited, pair, separated_pair, terminated, tuple}

@@ -38,6 +38,7 @@ pub fn hex_or_decimal(s: &str) -> Result<u16, ParseIntError>
     if s.to_ascii_lowercase().starts_with("0x") {
         u16::from_str_radix(&s[2..], 16)
     } else {
+        #[allow(clippy::from_str_radix_10)] // For consistency with code above
         u16::from_str_radix(s, 10)
     }
 }

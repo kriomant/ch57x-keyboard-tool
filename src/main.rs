@@ -223,7 +223,7 @@ fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u
         .context("claim interface")?;
 
     // Initialize device.
-    send_to_device(&handle, endpt_addr, &vec![0u8; 64])?;
+    send_to_device(&handle, endpt_addr, &[0u8; 64])?;
 
     Ok((handle, endpt_addr, id_product))
 }
