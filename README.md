@@ -99,19 +99,19 @@ Example config file has extensive documentation inside.
 
 You may also get list of supported key names using:
 
-```shell
+```sh
 ./ch57x-keyboard-tool show-keys
 ```
 
 ### Validate the config file
 
-```shell
+```sh
 ./ch57x-keyboard-tool validate your-config.yaml
 ```
 
 ### Upload the config to the keyboard
 
-```shell
+```sh
 ./ch57x-keyboard-tool upload your-config.yaml
 ```
 
@@ -119,7 +119,7 @@ You may also get list of supported key names using:
 
 Use 'sudo' if you get 'Access denied (insufficient permissions)':
 
-```shell
+```sh
 sudo ./ch57x-keyboard-tool upload your-config.yaml
 ```
 
@@ -131,7 +131,7 @@ SUBSYSTEM=="usb", ATTR{idVendor}=="1189", ATTR{idProduct}=="8890", MODE="0666"
 ```
 
 Reload udev configuration
-```
+```sh
 sudo udevadm control --reload
 sudo udevadm trigger
 ```
@@ -147,25 +147,21 @@ If your keyboard supports it, you can change the LED configuration.
 Syntax: `./ch57x-keyboard-tool led <layer> <mode>...`
 
 Modes:
-- `off` - LEDs off
-- `backlight <color>` - backlight always on with color
-- `shock <color>` - no backlight, shock effect with color when key pressed
-- `shock2 <color>` - no backlight, shock2 effect with color when key pressed
-- `press <color>` - no backlight, light up key with color when pressed
+- *off* - LEDs off
+- *backlight <color>* - backlight always on with color
+- *shock <color>* - no backlight, shock effect with color when key pressed
+- *shock2 <color>* - no backlight, shock2 effect with color when key pressed
+- *press <color>* - no backlight, light up key with color when pressed
 
 Supported key colors: *red*, *orange*, *yellow*, *green*, *cyan*, *blue*, *purple*.
 Backlight additionally supports *white*.
 
 #### 0x8890
 
-# Set the LED to the first mode (likely "Steady on")
+Set the LED to the first mode (likely "Steady on")
+
+```sh
 ./ch57x-keyboard-tool led 1
-
-### Windows / PowerShell
-
-Use `Get-Content` for input redirection:
-```Powershell
-Get-Content your-config.yaml | ./ch57x-keyboard-tool validate
 ```
 
 ## FAQ
@@ -221,7 +217,7 @@ These keys have aliases for both platforms, you may use them interchangeably.
 
 ### Commands and options
 
-```shell
+```sh
 ch57x-keyboard-tool [OPTIONS] <COMMAND>
 ```
 
@@ -253,19 +249,19 @@ When reporting an issue, please include diagnostics such as the list of attached
 
 #### macOS
 
-```shell
+```sh
 system_profiler SPUSBDataType
 ```
 
 or
 
-```shell
+```sh
 ioreg -w0 -l -p IOUSB
 ```
 
 #### Linux
 
-```shell
+```sh
 lsusb -v
 ```
 
@@ -281,7 +277,7 @@ The simplest and cross-platform way to monitor keyboard and mouse events is usin
 
 Monitoring keyboard:
 
-```shell
+```sh
 pip3 install keyboard
 sudo python3 -m keyboard
 ```
@@ -289,7 +285,7 @@ sudo python3 -m keyboard
 Monitoring mouse:
 * The latest published 'mouse' module doesn't support macOS, so use the latest version from GitHub
 
-```shell
+```sh
 git clone https://github.com/boppreh/mouse
 cd mouse
 python3 -m mouse
