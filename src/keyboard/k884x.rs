@@ -213,7 +213,7 @@ impl Keyboard884x {
             // doesn't use 25-27 codes as it should, but use 13-15, which are allocated for buttons.
             // So, it seems, they exchange one row of buttons to extra knob.
             Key::Button(n) if n >= 12 && self.knobs == 4 => Err(anyhow::anyhow!("invalid key index")),
-            Key::Knob(4, action) if self.buttons <= 12 => Ok(13 + (action as u8)),
+            Key::Knob(3, action) if self.buttons <= 12 => Ok(13 + (action as u8)),
 
             Key::Button(n) => Ok(n + 1),
             Key::Knob(n, _) if n >= 3 => Err(anyhow::anyhow!("invalid knob index")),
@@ -401,7 +401,7 @@ mod tests {
         let mut buttons = EnumSet::new();
         buttons.insert(MouseButton::Left);
         let left_click = Macro::Mouse(MouseEvent(MouseAction::Click(buttons), None));
-        keyboard.bind_key(0, Key::Knob(4, KnobAction::Press), &left_click, &mut output).unwrap();
+        keyboard.bind_key(0, Key::Knob(3, KnobAction::Press), &left_click, &mut output).unwrap();
 
         assert_messages(&output, &[
             &[

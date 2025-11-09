@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix handling fourth knob on 8850
+
 ## 1.6.0
 
 - Described udev configuration to avoid using sudo
