@@ -111,7 +111,7 @@ fn main() -> Result<()> {
             // TODO: fix this dirty hack
             let mut keyboard = create_driver(id_product, 0, 0)?;
             let mut output = Vec::new();
-            
+
             args.insert(0, "led".to_string());
             keyboard.set_led(&args, &mut output)?;
             send_to_device(&handle, endpoint, &output)?;
@@ -202,7 +202,7 @@ fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u
         "only one device configuration is expected"
     );
 
-    let preferred_endpint = match id_product {
+    let preferred_endpoint = match id_product {
         0x8840 | 0x8842 | 0x8850 => k884x::Keyboard884x::preferred_endpoint(),
         0x8890 => k8890::Keyboard8890::preferred_endpoint(),
         _ => unreachable!("unsupported device"),
@@ -212,7 +212,7 @@ fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u
     let (intf_num, endpt_addr) = find_interface_and_endpoint(
         &device,
         devel_options.interface_number,
-        devel_options.endpoint_address.unwrap_or(preferred_endpint),
+        devel_options.endpoint_address.unwrap_or(preferred_endpoint),
     )?;
 
     // Open device.
