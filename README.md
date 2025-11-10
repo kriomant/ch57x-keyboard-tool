@@ -127,7 +127,7 @@ Alternatively, you may configure *udev* to give all users permission to program 
 
 Create file */etc/udev/rules.d/50-usb-macrokeyboard.rules* with content:
 ```
-SUBSYSTEM=="usb", ATTR{idVendor}=="1189", ATTR{idProduct}=="8890", MODE="0666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="1189", ATTR{idProduct}=="8890", TAG+="uaccess"
 ```
 
 Reload udev configuration
