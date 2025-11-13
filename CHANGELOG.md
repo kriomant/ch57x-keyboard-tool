@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix 'led' command for 844x
+
 ## 1.6.1
 
 - Try to fix lost of settings after disconnection for 8850

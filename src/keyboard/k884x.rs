@@ -172,9 +172,7 @@ impl Keyboard for Keyboard884x {
     }
 
     fn set_led(&mut self, args: &[String], output: &mut Vec<u8>) -> Result<()> {
-        let led_args = LedArgs::try_parse_from(
-            std::iter::once("led".to_string()).chain(args.iter().cloned())
-        )?;
+        let led_args = LedArgs::try_parse_from(args)?;
 
         let layer = led_args.layer;
         ensure!(layer < 3, "Layer must be 0-2");
