@@ -1,67 +1,45 @@
-# What is this?
+# ch57x-keyboard-tool
 
-This is an utility for programming small keyboards like this one:
+This is a utility for programming small CH57x-based macro keyboards.
 
-![](doc/keyboard-12-2.png)
+## Features
+- **GUI Tool**: A modern GTK4/Adwaita interface for easy configuration.
+- **CLI Tool**: Scriptable command-line interface for uploading mappings.
+- **Multi-Layer Support**: Configure up to 16 layers (hardware permitting).
+- **Macro Builder**: Live hotkey capture and manual macro building.
+- **Diagnostic Console**: Built-in hardware detection and permission fixing.
 
-There are several modifications of such keyboards with different number of
-buttons and knobs. Utility was tested to work with:
- * 3×3 with 2 knobs
- * 3×4 with 2 knobs (Bluetooth version)
+## Installation
 
-Such keyboards are popular on AliExpress and seller usually sends software
-for programming, but it:
- * requires Windows,
- * is very ugly and inconvenient,
- * can only program one key at a time
- * don't expose all keyboard features
+### Prerequisites (Linux)
+You need GTK4, Libadwaita, and USB development libraries:
+```bash
+# Debian/Ubuntu
+sudo apt install pkg-config libgtk-4-dev libadwaita-1-dev libusb-1.0-0-dev
+```
 
-# How to use?
+### Build
+```bash
+cargo build --release
+```
 
-Sorry, right now there are no prebuilt binaries, may be fixed later.
-Install *cargo* utility using [rustup](https://rustup.rs/), then execute
-`cargo install ch57x-keyboard-tool`.
+## Usage
 
-Now create you own config from provided *example-mapping.yaml*, and apply:
+### GUI Tool (Recommended)
+Launch the graphical interface to configure macros, layers, and hardware settings visually:
+```bash
+cargo run --bin ch57x-keyboard-gui
+```
 
-    ch57x-keyboard-tool upload < your-config.yaml
+### CLI Tool
+Upload a mapping from a YAML file via stdin:
+```bash
+ch57x-keyboard-tool upload < your-config.yaml
+```
+Select LED backlight mode:
+```bash
+ch57x-keyboard-tool led 1
+```
 
-You can also change LED configuration, if you keyboard supports it:
-
-    ch57x-keyboard-tool led 1
-
-# Diagnostics
-
-If you have any troubles using this software, please provide diagnostics.
-
-## Getting list of attached USB devices
-
-### MacOS
-
-
-    ioreg -w0 -l -p IOUSB
-
-or
-
-    system_profiler SPUSBDataType
-
-### Linux
-
-
-    lsusb -v
-
-## Monitoring generated keyboard and mouse events
-
-Most simple (and cross-platform) way I've found is using `keyboard` and `mouse` Python modules.
-
-Monitoring keyboard:
-
-    pip3 install keyboard
-    sudo python3 -m keyboard
-
-Monitoring mouse:
-
-    # Latest published 'mouse' module doesn't support MacOS, so use latest version from Git:
-    git clone https://github.com/boppreh/mouse
-    cd mouse
-    python3 -m mouse
+## Diagnostics
+The GUI tool includes a **Diagnostic Console** at the bottom. If you see "Permissions Denied", click the **"Fix Linux Permissions"** button in the app to automatically install the required udev rules.

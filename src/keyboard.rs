@@ -6,7 +6,7 @@ use log::debug;
 use rusb::{DeviceHandle, GlobalContext};
 use anyhow::{anyhow, ensure, Result};
 use enumset::{EnumSetType, EnumSet};
-use serde_with::DeserializeFromStr;
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 use strum_macros::{EnumString, Display};
 
 use itertools::Itertools as _;
@@ -69,6 +69,9 @@ impl Keyboard {
             }
             Macro::Mouse(MouseEvent(MouseAction::WheelDown, modifier)) => {
                 self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0xff, modifier.map_or(0, |m| m as u8), 0])?;
+            }
+            Macro::Layer(target) => {
+                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x04, *target, 0, 0, 0, 0, 0])?;
             }
         };
 
@@ -286,7 +289,7 @@ pub enum Code {
     F24,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, DeserializeFromStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)]
 pub struct Accord {
     pub modifiers: Modifiers,
     pub code: Option<Code>,
@@ -382,13 +385,14 @@ impl Display for MouseEvent {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, DeserializeFromStr)]
+#[derive(Debug, Clone, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)]
 pub enum Macro {
     Keyboard(Vec<Accord>),
     #[allow(unused)]
     Media(MediaCode),
     #[allow(unused)]
     Mouse(MouseEvent),
+    Layer(u8),
 }
 
 impl Macro {
@@ -397,6 +401,7 @@ impl Macro {
             Macro::Keyboard(_) => 1,
             Macro::Media(_) => 2,
             Macro::Mouse(_) => 3,
+            Macro::Layer(_) => 4,
         }
     }
 }
@@ -420,6 +425,12 @@ impl Display for Macro {
             }
             Macro::Mouse(event) => {
                 write!(f, "{}", event)
+            }
+            Macro::Layer(0) => {
+                write!(f, "nextlayer")
+            }
+            Macro::Layer(n) => {
+                write!(f, "layer:{}", n)
             }
         }
     }

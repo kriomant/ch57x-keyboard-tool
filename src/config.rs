@@ -1,9 +1,9 @@
 use anyhow::{Result, ensure};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::keyboard::Macro;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
     pub orientation: Orientation,
     pub rows: u8,
@@ -35,7 +35,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all="lowercase")]
 pub enum Orientation {
     Normal,
@@ -50,13 +50,13 @@ impl Orientation {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Layer {
     pub buttons: Vec<Vec<Option<Macro>>>,
     pub knobs: Vec<Knob>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Knob {
     pub ccw: Option<Macro>,
     pub press: Option<Macro>,

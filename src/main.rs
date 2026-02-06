@@ -1,13 +1,7 @@
-mod consts;
-mod options;
-mod keyboard;
-mod config;
-mod parse;
-
-use crate::config::Config;
-use crate::options::{Command, LedCommand};
-use crate::{options::Options, keyboard::Key};
-use crate::keyboard::{Keyboard, KnobAction};
+use ch57x_keyboard_tool::config::Config;
+use ch57x_keyboard_tool::options::{Command, LedCommand};
+use ch57x_keyboard_tool::options::Options;
+use ch57x_keyboard_tool::keyboard::{Keyboard, Key, KnobAction};
 
 use anyhow::{anyhow, ensure, Result};
 use itertools::Itertools;
