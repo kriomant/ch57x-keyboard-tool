@@ -1,157 +1,145 @@
+use std::io::{BufReader, Read, StdinLock};
+
 use ch57x_keyboard_tool::config::Config;
-use ch57x_keyboard_tool::options::{Command, LedCommand};
+use ch57x_keyboard_tool::keyboard::{
+    KnobAction, MediaCode, Modifier,
+    WellKnownCode,
+};
+use ch57x_keyboard_tool::options::{Command, LedCommand, TestLedCommand};
+use ch57x_keyboard_tool::keyboard::Key;
 use ch57x_keyboard_tool::options::Options;
-use ch57x_keyboard_tool::keyboard::{Keyboard, Key, KnobAction};
 
-use anyhow::{anyhow, ensure, Result};
+use anyhow::{Result, anyhow, Context as _};
 use itertools::Itertools;
-use log::debug;
-use rusb::{Device, DeviceDescriptor, GlobalContext, TransferType};
-use indoc::indoc;
+use ch57x_keyboard_tool::options::{ConfigParams};
+use ch57x_keyboard_tool::{open_device, send_to_device, create_driver};
 
-use anyhow::Context as _;
 use clap::Parser as _;
+use strum::EnumMessage as _;
+use strum::IntoEnumIterator as _;
 
 fn main() -> Result<()> {
     env_logger::init();
     let options = Options::parse();
 
-    // Find USB device and endpoint.
-    let (device, desc) = find_device(&options).context("find USB device")?;
-
-    // Find device endpoint.
-    ensure!(
-        desc.num_configurations() == 1,
-        "only one device configuration is expected"
-    );
-    let conf_desc = device
-        .config_descriptor(0)
-        .context("get config #0 descriptor")?;
-    let intf = conf_desc
-        .interfaces()
-        .find(|intf| intf.number() == 1)
-        .ok_or_else(|| anyhow!("interface #1 not found"))?;
-    let intf_desc = intf
-        .descriptors()
-        .exactly_one()
-        .map_err(|_| anyhow!("only one interface descriptor is expected"))?;
-    ensure!(
-        intf_desc.class_code() == 0x03
-            && intf_desc.sub_class_code() == 0x00
-            && intf_desc.protocol_code() == 0x00,
-        "unexpected interface parameters"
-    );
-    let endpt_desc = intf_desc
-        .endpoint_descriptors()
-        .exactly_one()
-        .map_err(|_| anyhow!("single endpoint is expected"))?;
-    ensure!(
-        endpt_desc.transfer_type() == TransferType::Interrupt,
-        "unexpected endpoint transfer type"
-    );
-
-    // Open device.
-    let mut handle = device.open().context("open USB device")?;
-    handle.claim_interface(intf.number())?;
-    let mut keyboard = Keyboard::new(handle, endpt_desc.address()).context("init keyboard")?;
-
     match options.command {
-        Command::Upload => {
-            // Load and validate mapping.
-            let config: Config = serde_yaml::from_reader(std::io::stdin().lock())
+        Command::ShowKeys => {
+            println!("Modifiers: ");
+            for m in Modifier::iter() {
+                println!(" - {}", m.get_serializations().iter().join(" / "));
+            }
+
+            println!();
+            println!("Keys:");
+            for c in WellKnownCode::iter() {
+                println!(" - {c}");
+            }
+
+            println!();
+            println!("Custom key syntax (use decimal code): <110>");
+
+            println!();
+            println!("Media keys:");
+            for c in MediaCode::iter() {
+                println!(" - {}", c.get_serializations().iter().join(" / "));
+            }
+
+            println!();
+            println!("Mouse actions:");
+            println!(" - wheel(-100)");
+            println!(" - click(left+right)");
+            println!(" - move(5,0)");
+            println!(" - drag(left+right,0,5)");
+        }
+
+        Command::Validate(params) => {
+            let config: Config = load_config(&params)
                 .context("load mapping config")?;
-            let layers = config.render()?;
+            let _ = config.render().context("render mappings config")?;
+            println!("config is valid 👌")
+        }
+
+        Command::Upload(params) => {
+            let config: Config = load_config(&params)
+                .context("load mapping config")?;
+            let (buttons, knobs) = (config.rows * config.columns, config.knobs);
+            let layers = config.render().context("render mapping config")?;
+
+            let (handle, endpoint, id_product) = open_device(&options.devel_options)?;
+            let keyboard = create_driver(id_product, buttons, knobs)?;
+
+            let mut output = Vec::new();
 
             // Apply keyboard mapping.
             for (layer_idx, layer) in layers.iter().enumerate() {
                 for (button_idx, macro_) in layer.buttons.iter().enumerate() {
                     if let Some(macro_) = macro_ {
-                        keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), macro_)
+                        keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), macro_, &mut output)
                             .context("bind key")?;
                     }
                 }
 
                 for (knob_idx, knob) in layer.knobs.iter().enumerate() {
                     if let Some(macro_) = &knob.ccw {
-                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCCW), macro_)?;
+                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCCW), macro_, &mut output)?;
                     }
                     if let Some(macro_) = &knob.press {
-                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::Press), macro_)?;
+                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::Press), macro_, &mut output)?;
                     }
                     if let Some(macro_) = &knob.cw {
-                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCW), macro_)?;
+                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCW), macro_, &mut output)?;
                     }
                 }
             }
+
+            // Send all accumulated data to device
+            send_to_device(&handle, endpoint, &output)?;
         }
 
-        Command::Led(LedCommand { index }) => {
-            keyboard.set_led(index)?;
+        Command::Led(LedCommand { mut args }) => {
+            let (handle, endpoint, id_product) = open_device(&options.devel_options)?;
+            // TODO: fix this dirty hack
+            let mut keyboard = create_driver(id_product, 0, 0)?;
+            let mut output = Vec::new();
+
+            args.insert(0, "led".to_string());
+            keyboard.set_led(&args, &mut output)?;
+            send_to_device(&handle, endpoint, &output)?;
+        }
+
+        Command::TestLed(TestLedCommand { mut args }) => {
+            let product_id = options.devel_options.product_id
+                .ok_or_else(|| anyhow!("test-led command requires --product-id to be specified"))?;
+
+            // Create driver without USB device initialization
+            let mut keyboard = create_driver(product_id, 0, 0)?;
+            let mut output = Vec::new();
+
+            // Validate LED arguments
+            args.insert(0, "test-led".to_string());
+            keyboard.set_led(&args, &mut output)?;
+
+            println!("Generated {} bytes of data", output.len());
         }
     }
 
     Ok(())
 }
 
-fn find_device(opts: &Options) -> Result<(Device<GlobalContext>, DeviceDescriptor)> {
-    let mut found = vec![];
-    for device in rusb::devices().context("get USB device list")?.iter() {
-        let desc = device.device_descriptor().context("get USB device info")?;
-        debug!(
-            "Bus {:03} Device {:03} ID {:04x}:{:04x}",
-            device.bus_number(),
-            device.address(),
-            desc.vendor_id(),
-            desc.product_id()
-        );
-        if desc.vendor_id() == opts.vendor_id && desc.product_id() == opts.product_id {
-            found.push((device, desc));
-            continue
+fn load_config(params: &ConfigParams) -> Result<Config> {
+    // Load and validate mapping.
+    let mut stdin_reader: BufReader<StdinLock<'static>>;
+    let mut file_reader: BufReader<std::fs::File>;
+    let reader: &mut dyn Read = match &params.config_path {
+        Some(path) => {
+            let file = std::fs::File::open(path).context("open config file")?;
+            file_reader = BufReader::new(file);
+            &mut file_reader
         }
-    }
-
-    match found.len() {
-        0 => Err(anyhow!(
-            "CH57x keyboard device not found. Use --vendor-id and --product-id to override settings."
-        )),
-        1 => Ok(found.pop().unwrap()),
-        _ => {
-            let mut addresses = vec![];
-            for (device, desc) in found {
-                /*let handle = device.open().context("open device")?;
-                let langs = handle.read_languages(DEFAULT_TIMEOUT).context("get langs")?;
-                dbg!(&langs);
-                let lang =
-                    // First try to find US English language
-                    langs.iter().find(|l| {
-                        l.primary_language() == PrimaryLanguage::English &&
-                        l.sub_language() == SubLanguage::UnitedStates
-                    })
-                    // Then any English sublanguage
-                    .or_else(|| langs.iter().find(|l| l.primary_language() == PrimaryLanguage::English))
-                    // Then just first available language
-                    .or_else(|| langs.first())
-                    // Ok, give up
-                    .ok_or_else(|| anyhow!("No languages found"))?;
-                dbg!(lang);
-                let serial = handle.read_serial_number_string(*lang, &desc, DEFAULT_TIMEOUT)
-                    .context("read serial")?;*/
-                let address = (device.bus_number(), device.address());
-                if opts.address.as_ref() == Some(&address) {
-                    return Ok((device, desc))
-                }
-
-                addresses.push(address);
-            }
-
-            Err(anyhow!(indoc! {"
-                Several compatible devices are found.
-                Unfortunately, this model of keyboard doesn't have serial number.
-                So specify USB address using --address option.
-                
-                Addresses:
-                {}
-            "}, addresses.iter().map(|(bus, addr)| format!("{bus}:{addr}")).join("\n")))
+        None => {
+            stdin_reader = BufReader::new(std::io::stdin().lock());
+            &mut stdin_reader
         }
-    }
+    };
+    Ok(serde_yaml::from_reader(reader)?)
 }

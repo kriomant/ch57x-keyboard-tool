@@ -3,14 +3,16 @@ use adw::{Application, ApplicationWindow, HeaderBar, ViewStack, ViewSwitcher};
 use gtk4 as gtk;
 use gtk::{Box, Orientation, Button, Label, Grid, Entry, FileChooserDialog, ResponseType, ComboBoxText, Dialog, EventControllerKey, SpinButton, Adjustment, TextView, ScrolledWindow, TextTagTable, TextBuffer, CssProvider};
 use ch57x_keyboard_tool::config::{Config, Layer, Knob, Orientation as KbdOrientation};
-use ch57x_keyboard_tool::keyboard::{Keyboard, Key, KnobAction, Macro, Accord, Code, MediaCode, MouseEvent, MouseAction, MouseButton, Modifier};
-use rusb::{Device, GlobalContext};
-use anyhow::{Result, anyhow, Context};
+use ch57x_keyboard_tool::keyboard::{Key, KnobAction, Macro, Accord, Code, MediaCode, MouseEvent, MouseAction, MouseButton, Modifier, KeyboardEvent, WellKnownCode, MacroOptions};
+use rusb::{Device, Context, DeviceDescriptor};
+use anyhow::Result;
 use std::sync::{Arc, Mutex};
 use std::str::FromStr;
 use std::fs::File;
 use enumset::EnumSet;
 use directories::ProjectDirs;
+use ch57x_keyboard_tool::{find_device, create_driver};
+use ch57x_keyboard_tool::options::DevelOptions;
 
 struct AppState {
     config: Config,
@@ -69,6 +71,7 @@ fn get_default_config_path() -> Option<std::path::PathBuf> {
 }
 
 fn build_ui(app: &Application) {
+    // Determine startup config
     let config_path = get_default_config_path();
     let config = if let Some(ref path) = config_path {
         if path.exists() {
@@ -82,6 +85,7 @@ fn build_ui(app: &Application) {
 
     let last_saved_yml = serde_yaml::to_string(&config).unwrap_or_default();
 
+    // If it didn't exist, try to save it as default
     if let Some(ref path) = config_path {
         if !path.exists() {
             let _ = std::fs::create_dir_all(path.parent().unwrap());
@@ -105,6 +109,7 @@ fn build_ui(app: &Application) {
         yml_container: yml_container.clone(),
     }));
 
+    // Log startup info
     if let Some(ref path) = config_path {
         log_debug(&debug_buffer, &format!("Config path: {}", path.display()));
     }
@@ -164,6 +169,7 @@ fn build_ui(app: &Application) {
     main_box.set_margin_start(12);
     main_box.set_margin_end(12);
     
+    // Status and diagnostic box
     let diag_box = Box::new(Orientation::Horizontal, 12);
     diag_box.set_halign(gtk::Align::Center);
     let diag_icon = Label::new(None);
@@ -417,7 +423,7 @@ fn build_ui(app: &Application) {
         let log_msg;
         
         let (icon, msg) = match res {
-            Ok((device, _addr)) => {
+            Ok((device, _desc, _addr)) => {
                 let bus = device.bus_number();
                 let port = device.address();
                 let path = format!("/dev/bus/usb/{:03}/{:03}", bus, port);
@@ -450,7 +456,7 @@ fn build_ui(app: &Application) {
                 }
             },
             Err(_) => {
-                log_msg = "Diagnostic: Searching for CH57x keyboard (1189:8890)... Not found.".to_string();
+                log_msg = "Diagnostic: Searching for CH57x keyboard... Not found.".to_string();
                 (
                     "❌", 
                     "Keyboard not found. Connect it via USB.".to_string(),
@@ -713,19 +719,10 @@ fn refresh_view_stack(view_stack: &ViewStack, state: &Arc<Mutex<AppState>>) {
 }
 
 fn char_to_code(c: char) -> Option<Code> {
-    match c.to_ascii_lowercase() {
-        'a' => Some(Code::A), 'b' => Some(Code::B), 'c' => Some(Code::C), 'd' => Some(Code::D),
-        'e' => Some(Code::E), 'f' => Some(Code::F), 'g' => Some(Code::G), 'h' => Some(Code::H),
-        'i' => Some(Code::I), 'j' => Some(Code::J), 'k' => Some(Code::K), 'l' => Some(Code::L),
-        'm' => Some(Code::M), 'n' => Some(Code::N), 'o' => Some(Code::O), 'p' => Some(Code::P),
-        'q' => Some(Code::Q), 'r' => Some(Code::R), 's' => Some(Code::S), 't' => Some(Code::T),
-        'u' => Some(Code::U), 'v' => Some(Code::V), 'w' => Some(Code::W), 'x' => Some(Code::X),
-        'y' => Some(Code::Y), 'z' => Some(Code::Z),
-        '1' => Some(Code::N1), '2' => Some(Code::N2), '3' => Some(Code::N3), '4' => Some(Code::N4),
-        '5' => Some(Code::N5), '6' => Some(Code::N6), '7' => Some(Code::N7), '8' => Some(Code::N8),
-        '9' => Some(Code::N9), '0' => Some(Code::N0),
-        ' ' => Some(Code::Space),
-        _ => None,
+    match WellKnownCode::from_str(&c.to_lowercase().to_string()) {
+        Ok(code) => Some(Code::WellKnown(code)),
+        Err(_) if c == ' ' => Some(Code::WellKnown(WellKnownCode::Space)),
+        Err(_) => None,
     }
 }
 
@@ -775,27 +772,21 @@ fn show_macro_builder<F: Fn(Macro) + 'static>(parent: &gtk::Window, on_ok: F) {
         if state.contains(gtk::gdk::ModifierType::SUPER_MASK) { modifiers.insert(Modifier::Win); }
 
         let key_name = keyval.name().unwrap_or_default().to_string();
-        let code = match key_name.to_lowercase().as_str() {
-            "a" => Some(Code::A), "b" => Some(Code::B), "c" => Some(Code::C), "d" => Some(Code::D),
-            "e" => Some(Code::E), "f" => Some(Code::F), "g" => Some(Code::G), "h" => Some(Code::H),
-            "i" => Some(Code::I), "j" => Some(Code::J), "k" => Some(Code::K), "l" => Some(Code::L),
-            "m" => Some(Code::M), "n" => Some(Code::N), "o" => Some(Code::O), "p" => Some(Code::P),
-            "q" => Some(Code::Q), "r" => Some(Code::R), "s" => Some(Code::S), "t" => Some(Code::T),
-            "u" => Some(Code::U), "v" => Some(Code::V), "w" => Some(Code::W), "x" => Some(Code::X),
-            "y" => Some(Code::Y), "z" => Some(Code::Z),
-            "1" => Some(Code::N1), "2" => Some(Code::N2), "3" => Some(Code::N3), "4" => Some(Code::N4),
-            "5" => Some(Code::N5), "6" => Some(Code::N6), "7" => Some(Code::N7), "8" => Some(Code::N8),
-            "9" => Some(Code::N9), "0" => Some(Code::N0),
-            "return" => Some(Code::Enter), "escape" => Some(Code::Escape), "backspace" => Some(Code::Backspace),
-            "tab" => Some(Code::Tab), "space" => Some(Code::Space),
-            "f1" => Some(Code::F1), "f2" => Some(Code::F2), "f3" => Some(Code::F3), "f4" => Some(Code::F4),
-            "f5" => Some(Code::F5), "f6" => Some(Code::F6), "f7" => Some(Code::F7), "f8" => Some(Code::F8),
-            "f9" => Some(Code::F9), "f10" => Some(Code::F10), "f11" => Some(Code::F11), "f12" => Some(Code::F12),
-            _ => None,
+        let well_known = WellKnownCode::from_str(&key_name.to_lowercase());
+        let code = match well_known {
+            Ok(c) => Some(Code::WellKnown(c)),
+            Err(_) => match key_name.to_lowercase().as_str() {
+                "return" => Some(Code::WellKnown(WellKnownCode::Enter)),
+                "escape" => Some(Code::WellKnown(WellKnownCode::Escape)),
+                "backspace" => Some(Code::WellKnown(WellKnownCode::Backspace)),
+                "tab" => Some(Code::WellKnown(WellKnownCode::Tab)),
+                "space" => Some(Code::WellKnown(WellKnownCode::Space)),
+                _ => None,
+            }
         };
 
         if code.is_some() || !modifiers.is_empty() {
-            let m = Macro::Keyboard(vec![Accord::new(modifiers, code)]);
+            let m = Macro::Keyboard(KeyboardEvent(MacroOptions::default(), vec![Accord::new(modifiers, code)]));
             display_label_clone.set_text(&format!("Captured: {}", m));
             *captured_macro_clone.lock().unwrap() = Some(m);
         }
@@ -817,14 +808,12 @@ fn show_macro_builder<F: Fn(Macro) + 'static>(parent: &gtk::Window, on_ok: F) {
 
     let stack = gtk::Stack::new();
     
-    // Keyboard Page
     let kbd_box = Box::new(Orientation::Vertical, 6);
     kbd_box.append(&Label::new(Some("Enter macro text (e.g. ctrl-c):")));
     let kbd_entry = Entry::new();
     kbd_box.append(&kbd_entry);
     stack.add_titled(&kbd_box, Some("keyboard"), "Keyboard");
 
-    // Media Page
     let media_combo = ComboBoxText::new();
     for code in [MediaCode::Play, MediaCode::Mute, MediaCode::VolumeUp, MediaCode::VolumeDown, MediaCode::Next, MediaCode::Previous] {
         media_combo.append_text(&code.to_string());
@@ -832,7 +821,6 @@ fn show_macro_builder<F: Fn(Macro) + 'static>(parent: &gtk::Window, on_ok: F) {
     media_combo.set_active(Some(0));
     stack.add_titled(&media_combo, Some("media"), "Media");
 
-    // Mouse Page
     let mouse_box = Box::new(Orientation::Vertical, 6);
     let mouse_combo = ComboBoxText::new();
     mouse_combo.append_text("Left Click");
@@ -844,14 +832,12 @@ fn show_macro_builder<F: Fn(Macro) + 'static>(parent: &gtk::Window, on_ok: F) {
     mouse_box.append(&mouse_combo);
     stack.add_titled(&mouse_box, Some("mouse"), "Mouse");
 
-    // Text Page
     let text_box = Box::new(Orientation::Vertical, 6);
     text_box.append(&Label::new(Some("Enter text to type:")));
     let text_entry = Entry::builder().max_length(5).build();
     text_box.append(&text_entry);
     stack.add_titled(&text_box, Some("text"), "Text");
 
-    // Layer Switch Page
     let layer_box = Box::new(Orientation::Vertical, 6);
     let layer_combo = ComboBoxText::new();
     layer_combo.append_text("Next Layer");
@@ -898,8 +884,8 @@ fn show_macro_builder<F: Fn(Macro) + 'static>(parent: &gtk::Window, on_ok: F) {
                             Some("Left Click") => Some(Macro::Mouse(MouseEvent(MouseAction::Click(MouseButton::Left.into()), None))),
                             Some("Right Click") => Some(Macro::Mouse(MouseEvent(MouseAction::Click(MouseButton::Right.into()), None))),
                             Some("Middle Click") => Some(Macro::Mouse(MouseEvent(MouseAction::Click(MouseButton::Middle.into()), None))),
-                            Some("Wheel Up") => Some(Macro::Mouse(MouseEvent(MouseAction::WheelUp, None))),
-                            Some("Wheel Down") => Some(Macro::Mouse(MouseEvent(MouseAction::WheelDown, None))),
+                            Some("Wheel Up") => Some(Macro::Mouse(MouseEvent(MouseAction::Wheel(1), None))),
+                            Some("Wheel Down") => Some(Macro::Mouse(MouseEvent(MouseAction::Wheel(-1), None))),
                             _ => None
                         }
                     },
@@ -910,7 +896,7 @@ fn show_macro_builder<F: Fn(Macro) + 'static>(parent: &gtk::Window, on_ok: F) {
                             .map(|code| Accord::new(EnumSet::empty(), Some(code)))
                             .collect();
                         if !accords.is_empty() {
-                            Some(Macro::Keyboard(accords))
+                            Some(Macro::Keyboard(KeyboardEvent(MacroOptions::default(), accords)))
                         } else {
                             None
                         }
@@ -936,69 +922,59 @@ fn show_macro_builder<F: Fn(Macro) + 'static>(parent: &gtk::Window, on_ok: F) {
     dialog.present();
 }
 
-fn find_keyboard() -> Result<(Device<GlobalContext>, u8)> {
-    let mut found = vec![];
-    for device in rusb::devices().context("get USB device list")?.iter() {
-        let desc = device.device_descriptor().context("get USB device info")?;
-        if desc.vendor_id() == ch57x_keyboard_tool::consts::VENDOR_ID && desc.product_id() == ch57x_keyboard_tool::consts::PRODUCT_ID {
-            found.push(device);
-        }
-    }
-
-    let device = found.pop().ok_or_else(|| anyhow!("Device not found"))?;
-    let conf_desc = device.config_descriptor(0)?;
-    let intf = conf_desc.interfaces().find(|intf| intf.number() == 1).ok_or_else(|| anyhow!("interface #1 not found"))?;
-    let intf_desc = intf.descriptors().next().ok_or_else(|| anyhow!("no intf desc"))?;
-    let endpt_desc = intf_desc.endpoint_descriptors().next().ok_or_else(|| anyhow!("no endpt desc"))?;
-
-    Ok((device, endpt_desc.address()))
+fn find_keyboard() -> Result<(Device<Context>, DeviceDescriptor, u16)> {
+    find_device(&DevelOptions::default())
 }
 
-fn set_keyboard_led(index: u8) -> Result<()> {
-    let (device, addr): (Device<GlobalContext>, u8) = find_keyboard()?;
-    let mut handle = device.open()?;
-    if handle.kernel_driver_active(1)? {
-        handle.detach_kernel_driver(1)?;
-    }
-    handle.claim_interface(1)?;
-    let mut keyboard = Keyboard::new(handle, addr)?;
-    keyboard.set_led(index)?;
+fn set_keyboard_led(mode: u8) -> Result<()> {
+    let (_device, _desc, product_id) = find_keyboard()?;
+    let mut keyboard = create_driver(product_id, 0, 0)?;
+    
+    // Construct LED args for k884x or k8890
+    let args = if product_id == 0x8890 {
+        vec![mode.to_string()]
+    } else {
+        // Default to layer 0 and the provided mode stringified if possible, 
+        // but GUI currently simplified to just mode index.
+        vec!["0".to_string(), format!("backlight white")] // Placeholder for 884x
+    };
+
+    let (handle, endpoint, _) = ch57x_keyboard_tool::open_device(&DevelOptions::default())?;
+    let mut output = Vec::new();
+    keyboard.set_led(&args, &mut output)?;
+    ch57x_keyboard_tool::send_to_device(&handle, endpoint, &output)?;
     Ok(())
 }
 
 fn upload_config(config: &Config) -> Result<()> {
-    let (device, addr): (Device<GlobalContext>, u8) = find_keyboard()?;
-    let mut handle = device.open()?;
-    if handle.kernel_driver_active(1)? {
-        handle.detach_kernel_driver(1)?;
-    }
-    handle.claim_interface(1)?;
-    let mut keyboard = Keyboard::new(handle, addr)?;
+    let (_device, _desc, product_id) = find_keyboard()?;
+    let (buttons, knobs) = (config.rows * config.columns, config.knobs);
+    let keyboard = create_driver(product_id, buttons, knobs)?;
 
     let layers = config.clone().render()?;
-    let empty_macro = Macro::Keyboard(vec![]);
+    let empty_macro = Macro::Keyboard(KeyboardEvent(MacroOptions::default(), vec![]));
+
+    let (handle, endpoint, _) = ch57x_keyboard_tool::open_device(&DevelOptions::default())?;
+    let mut output = Vec::new();
 
     for (layer_idx, layer) in layers.iter().enumerate() {
         for (button_idx, macro_) in layer.buttons.iter().enumerate() {
             let m = macro_.as_ref().unwrap_or(&empty_macro);
-            keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), m)?;
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            keyboard.bind_key(layer_idx as u8, Key::Button(button_idx as u8), m, &mut output)?;
         }
 
         for (knob_idx, knob) in layer.knobs.iter().enumerate() {
             let ccw = knob.ccw.as_ref().unwrap_or(&empty_macro);
-            keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCCW), ccw)?;
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCCW), ccw, &mut output)?;
 
             let press = knob.press.as_ref().unwrap_or(&empty_macro);
-            keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::Press), press)?;
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::Press), press, &mut output)?;
 
             let cw = knob.cw.as_ref().unwrap_or(&empty_macro);
-            keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCW), cw)?;
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCW), cw, &mut output)?;
         }
     }
 
+    ch57x_keyboard_tool::send_to_device(&handle, endpoint, &output)?;
     Ok(())
 }

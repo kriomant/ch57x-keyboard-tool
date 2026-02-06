@@ -1,5 +1,8 @@
-use clap::{Parser, Subcommand};
-use crate::consts::{VENDOR_ID, PRODUCT_ID};
+use std::ffi::OsString;
+use std::num::ParseIntError;
+
+use clap::{Args, Parser, Subcommand};
+use crate::consts::VENDOR_ID;
 use crate::parse;
 
 #[derive(Parser)]
@@ -7,14 +10,49 @@ pub struct Options {
     #[command(subcommand)]
     pub command: Command,
 
-    #[arg(long, default_value_t=VENDOR_ID)]
+    #[clap(flatten)]
+    pub devel_options: DevelOptions,
+}
+
+#[derive(Args)]
+#[clap(version, next_help_heading = "Internal options (use with caution)")]
+pub struct DevelOptions {
+    #[arg(long, default_value_t=VENDOR_ID, value_parser=hex_or_decimal)]
     pub vendor_id: u16,
 
-    #[arg(long, default_value_t=PRODUCT_ID)]
-    pub product_id: u16,
+    #[arg(long, value_parser=hex_or_decimal)]
+    pub product_id: Option<u16>,
 
     #[arg(long, value_parser=parse_address)]
     pub address: Option<(u8, u8)>,
+
+    #[arg(long)]
+    pub endpoint_address: Option<u8>,
+
+    #[arg(long)]
+    pub interface_number: Option<u8>,
+}
+
+impl Default for DevelOptions {
+    fn default() -> Self {
+        Self {
+            vendor_id: VENDOR_ID,
+            product_id: None,
+            address: None,
+            endpoint_address: None,
+            interface_number: None,
+        }
+    }
+}
+
+pub fn hex_or_decimal(s: &str) -> Result<u16, ParseIntError>
+{
+    if s.to_ascii_lowercase().starts_with("0x") {
+        u16::from_str_radix(&s[2..], 16)
+    } else {
+        #[allow(clippy::from_str_radix_10)] // For consistency with code above
+        u16::from_str_radix(s, 10)
+    }
 }
 
 fn parse_address(s: &str) -> std::result::Result<(u8, u8), nom::error::Error<String>> {
@@ -23,15 +61,39 @@ fn parse_address(s: &str) -> std::result::Result<(u8, u8), nom::error::Error<Str
 
 #[derive(Subcommand)]
 pub enum Command {
+    /// Show supported keys and modifiers
+    ShowKeys,
+
+    /// Validate key mappings config on stdin
+    Validate(ConfigParams),
+
     /// Upload key mappings from stdin to device
-    Upload,
+    Upload(ConfigParams),
 
     /// Select LED backlight mode
     Led(LedCommand),
+
+    /// Test LED mode specification without device initialization (hidden command)
+    #[command(hide = true)]
+    TestLed(TestLedCommand),
+}
+
+#[derive(Parser)]
+pub struct ConfigParams {
+    /// Path to config file to upload.
+    /// If not given, read from stdin.
+    pub config_path: Option<OsString>,
 }
 
 #[derive(Parser)]
 pub struct LedCommand {
-    /// Index of LED mode (zero-based)
-    pub index: u8,
+    #[arg(num_args=0.., allow_hyphen_values=true)]
+    pub args: Vec<String>,
+}
+
+#[derive(Parser)]
+pub struct TestLedCommand {
+    /// LED command arguments (layer and mode)
+    #[arg(num_args=0.., allow_hyphen_values=true)]
+    pub args: Vec<String>,
 }

@@ -1,22 +1,15 @@
-///! Collection of NOM parsers for various things.
-///! Generally only `parse` and `from_str` functions should be called
-///! from outside of this module, they ensures that whole input is
-///! consumed.
-///! Other functions are composable parsers for use within this module
-///! or as parameters for functions mentioned above.
+//! Collection of NOM parsers for various things.
+//! Generally only `parse` and `from_str` functions should be called
+//! from outside of this module, they ensures that whole input is
+//! consumed.
+//! Other functions are composable parsers for use within this module
+//! or as parameters for functions mentioned above.
 
 use nom::{
-    Parser, IResult, InputLength,
-    branch::alt,
-    sequence::{tuple, terminated, separated_pair},
-    multi::separated_list1,
-    bytes::complete::tag,
-    character::complete::{char, alpha1, alphanumeric1, digit1},
-    combinator::{map, map_res, opt, all_consuming, value},
-    error::{ParseError, Error, FromExternalError, ErrorKind},
+    IResult, InputLength, Parser, branch::alt, bytes::complete::tag, character::complete::{alpha1, alphanumeric1, char, digit1}, combinator::{all_consuming, cut, map, map_res, opt, recognize, value}, error::ParseError, multi::{fold_many0, separated_list0, separated_list1}, sequence::{delimited, pair, separated_pair, terminated, tuple}
 };
 
-use crate::keyboard::{Accord, Modifier, Modifiers, Macro, MouseEvent, MouseModifier, MouseButton, MouseButtons, MouseAction, MediaCode, Code};
+use crate::keyboard::{Accord, Code, Macro, MediaCode, Modifier, Modifiers, MouseAction, MouseButton, MouseButtons, MouseEvent, MouseModifier, WellKnownCode, KeyboardEvent, MacroOptions};
 
 use std::str::FromStr;
 
@@ -38,41 +31,112 @@ fn layer_switch(s: &str) -> IResult<&str, u8> {
     ))(s)
 }
 
-pub fn accord(s: &str) -> IResult<&str, Accord> {
-    let (s, parts) = separated_list1(char('-'), alphanumeric1)(s)?;
-    let (mods, code) = match Code::from_str(parts[parts.len()-1]) {
-        Ok(code) => (&parts[0..parts.len()-1], Some(code)),
-        Err(_) => (&parts[..], None),
-    };
+pub fn code(s: &str) -> IResult<&str, Code> {
+    let mut parser = alt((
+        map(
+            delimited(char('<'),
+                      map_res(digit1, str::parse),
+                      char('>')),
+            Code::Custom),
+        map_res(alphanumeric1,
+                |word| WellKnownCode::from_str(word).map(Code::WellKnown)),
+    ));
+    parser(s)
+}
 
-    let modifiers = mods.iter()
-        .map(|m| Modifier::from_str(m)
-            .map_err(|e| nom::Err::Failure(Error::from_external_error(*m, ErrorKind::MapRes, e)))
-        )
-        .collect::<Result<Vec<_>, _>>()?
-        .iter()
-        .fold(Modifiers::empty(), |mods, m| mods | *m);
-    Ok((s, Accord::new(modifiers, code)))
+pub fn modifier(s: &str) -> IResult<&str, Modifier> {
+    let mut parser = map_res(alpha1, Modifier::from_str);
+    parser(s)
+}
+
+pub fn modifiers_prefix(s: &str) -> IResult<&str, Modifiers> {
+    let mut parser = fold_many0(
+        terminated(modifier, char('-')),
+        Modifiers::empty,
+        |mods, m| mods | m);
+    parser(s)
+}
+
+pub fn accord(s: &str) -> IResult<&str, Accord> {
+    enum Fix { Modifier(Modifier), Code(Code) }
+
+    let mut parser = alt((
+        // <code>
+        map(code,
+            |code| Accord::new(Modifiers::empty(), Some(code))),
+
+        // (<modifier> '-')* (<code>|<modifier>)?
+        map(pair(
+            modifiers_prefix,
+            alt((
+                map(code, Fix::Code),
+                map(modifier, Fix::Modifier),
+            )),
+        ), |(mods, fix)| match fix {
+            Fix::Code(code) => Accord::new(mods, Some(code)),
+            Fix::Modifier(m) => Accord::new(mods | m, None),
+        })
+    ));
+    parser(s)
+}
+
+pub fn delta(s: &str) -> IResult<&str, i8> {
+    let mut parser = map_res(
+        recognize(pair(opt(tag("-")), digit1)),
+        str::parse::<i8>
+    );
+    parser(s)
+}
+
+fn mouse_buttons(s: &str) -> IResult<&str, MouseButtons> {
+    let mouse_button = map_res(alpha1, MouseButton::from_str);
+    let mut parser = map(separated_list1(char('+'), mouse_button), MouseButtons::from_iter);
+    parser(s)
 }
 
 fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
-    let button = alt((
+    let mouse_move = map(
+        delimited(
+            tag("move("),
+            cut(separated_pair(delta, tag(","), delta)),
+            tag(")")
+        ),
+        |(x,y)| MouseAction::Move(x, y),
+    );
+
+    let click = alt((
         value(MouseButton::Left, alt((tag("click"), tag("lclick")))),
         value(MouseButton::Right, tag("rclick")),
         value(MouseButton::Middle, tag("mclick")),
     ));
-    let buttons = map(separated_list1(char('+'), button), MouseButtons::from_iter);
-    let click = map(buttons, MouseAction::Click);
+    let clicks = alt((
+        delimited(tag("click("), mouse_buttons, tag(")")),
+        map(separated_list1(char('+'), click), MouseButtons::from_iter),
+    ));
+    let click_action = map(clicks, MouseAction::Click);
 
+    let mouse_drag = map(
+        delimited(
+            tag("drag("),
+            cut(tuple((
+                terminated(mouse_buttons, tag(",")),
+                terminated(delta, tag(",")),
+                delta,
+            ))),
+            tag(")"),
+        ),
+        |(buttons, x, y)| MouseAction::Drag(buttons, x, y),
+    );
     let wheel = alt((
-        value(MouseAction::WheelUp, tag("wheelup")),
-        value(MouseAction::WheelDown, tag("wheeldown")),
+        map(delimited(tag("wheel("), delta, tag(")")), MouseAction::Wheel),
+        value(MouseAction::Wheel(1), tag("wheelup")),
+        value(MouseAction::Wheel(-1), tag("wheeldown")),
     ));
 
     let mut event = map(
         tuple((
             opt(terminated(mouse_modifier, char('-'))),
-            alt((click, wheel)),
+            alt((click_action, wheel, mouse_move, mouse_drag)),
         )),
         |(modifier, action)| MouseEvent(action, modifier)
     );
@@ -80,12 +144,42 @@ fn mouse_event(s: &str) -> IResult<&str, MouseEvent> {
     event(s)
 }
 
+fn macro_options(s: &str) -> IResult<&str, MacroOptions> {
+    let mut parser = delimited(tag("{"),
+        separated_list0(tag(","), alt((
+            map(
+                delimited(tag("delay("), map_res(digit1, str::parse), tag(")")),
+                |delay| move |opts: &mut MacroOptions| { opts.delay = delay }
+            ),
+        ))),
+    tag("}"));
+    let (rest, mutators) = parser(s)?;
+
+    let mut opts = MacroOptions::default();
+    for m in mutators {
+        m(&mut opts);
+    }
+
+    Ok((rest, opts))
+}
+
+fn keyboard_event(s: &str) -> IResult<&str, KeyboardEvent> {
+    let mut parser = map(
+        pair(
+            opt(macro_options),
+            separated_list1(char(','), accord)
+        ),
+        |(opts, accords)| KeyboardEvent(opts.unwrap_or_default(), accords)
+    );
+    parser(s)
+}
+
 pub fn r#macro(s: &str) -> IResult<&str, Macro> {
     let mut parser = alt((
         map(mouse_event, Macro::Mouse),
         map(media_code, Macro::Media),
         map(layer_switch, Macro::Layer),
-        map(separated_list1(char(','), accord), Macro::Keyboard),
+        map(keyboard_event, Macro::Keyboard),
     ));
     parser(s)
 }
@@ -122,16 +216,25 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::keyboard::{Accord, Modifiers, Code, Modifier, Macro, MouseEvent, MouseModifier, MouseButton, MouseAction, MediaCode};
+    use crate::keyboard::{
+        Accord, Code, Macro, MediaCode, Modifier, Modifiers, MouseAction, MouseButton, MouseEvent, MouseModifier, WellKnownCode,
+        KeyboardEvent, MacroOptions,
+    };
+
+    #[test]
+    fn parse_custom_code() {
+        assert_eq!("<23>".parse(), Ok(Code::Custom(23)));
+    }
 
     #[test]
     fn parse_accord() {
-        assert_eq!("A".parse(), Ok(Accord::new(Modifiers::empty(), Some(Code::A))));
-        assert_eq!("a".parse(), Ok(Accord::new(Modifiers::empty(), Some(Code::A))));
-        assert_eq!("f1".parse(), Ok(Accord::new(Modifiers::empty(), Some(Code::F1))));
-        assert_eq!("ctrl-A".parse(), Ok(Accord::new(Modifier::Ctrl, Some(Code::A))));
-        assert_eq!("win-ctrl-A".parse(), Ok(Accord::new(Modifier::Win | Modifier::Ctrl, Some(Code::A))));
+        assert_eq!("A".parse(), Ok(Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into()))));
+        assert_eq!("a".parse(), Ok(Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into()))));
+        assert_eq!("f1".parse(), Ok(Accord::new(Modifiers::empty(), Some(WellKnownCode::F1.into()))));
+        assert_eq!("ctrl-A".parse(), Ok(Accord::new(Modifier::Ctrl, Some(WellKnownCode::A.into()))));
+        assert_eq!("win-ctrl-A".parse(), Ok(Accord::new(Modifier::Win | Modifier::Ctrl, Some(WellKnownCode::A.into()))));
         assert_eq!("win-ctrl".parse(), Ok(Accord::new(Modifier::Win | Modifier::Ctrl, None)));
+        assert_eq!("shift-<100>".parse(), Ok(Accord::new(Modifier::Shift, Some(Code::Custom(100)))));
 
         assert!("a1".parse::<Accord>().is_err());
         assert!("a+".parse::<Accord>().is_err());
@@ -139,14 +242,14 @@ mod tests {
 
     #[test]
     fn parse_macro() {
-        assert_eq!("A,B".parse(), Ok(Macro::Keyboard(vec![
-            Accord::new(Modifiers::empty(), Some(Code::A)),
-            Accord::new(Modifiers::empty(), Some(Code::B)),
-        ])));
-        assert_eq!("ctrl-A,alt-backspace".parse(), Ok(Macro::Keyboard(vec![
-            Accord::new(Modifier::Ctrl, Some(Code::A)),
-            Accord::new(Modifier::Alt, Some(Code::Backspace)),
-        ])));
+        assert_eq!("A,B".parse(), Ok(Macro::Keyboard(KeyboardEvent(MacroOptions::default(), vec![
+            Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into())),
+            Accord::new(Modifiers::empty(), Some(WellKnownCode::B.into())),
+        ]))));
+        assert_eq!("ctrl-A,alt-backspace".parse(), Ok(Macro::Keyboard(KeyboardEvent(MacroOptions::default(), vec![
+            Accord::new(Modifier::Ctrl, Some(WellKnownCode::A.into())),
+            Accord::new(Modifier::Alt, Some(WellKnownCode::Backspace.into())),
+        ]))));
         assert_eq!("click".parse(), Ok(Macro::Mouse(
             MouseEvent(MouseAction::Click(MouseButton::Left.into()), None)
         )));
@@ -154,7 +257,7 @@ mod tests {
             MouseEvent(MouseAction::Click(MouseButton::Left | MouseButton::Right), None)
         )));
         assert_eq!("ctrl-wheelup".parse(), Ok(Macro::Mouse(
-            MouseEvent(MouseAction::WheelUp, Some(MouseModifier::Ctrl))
+            MouseEvent(MouseAction::Wheel(1), Some(MouseModifier::Ctrl))
         )));
         assert_eq!("ctrl-click".parse(), Ok(Macro::Mouse(
             MouseEvent(MouseAction::Click(MouseButton::Left.into()), Some(MouseModifier::Ctrl))
@@ -162,7 +265,109 @@ mod tests {
     }
 
     #[test]
+    fn parse_click_syntax() {
+        // Test new click(...) syntax with single button
+        assert_eq!("click(left)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Click(MouseButton::Left.into()), None)
+        )));
+
+        // Test new click(...) syntax with multiple buttons
+        assert_eq!("click(left+right)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Click(MouseButton::Left | MouseButton::Right), None)
+        )));
+
+        // Test new click(...) syntax with modifier
+        assert_eq!("ctrl-click(middle)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Click(MouseButton::Middle.into()), Some(MouseModifier::Ctrl))
+        )));
+    }
+
+    #[test]
     fn parse_media() {
         assert_eq!("play".parse(), Ok(Macro::Media(MediaCode::Play)));
+    }
+
+    #[test]
+    fn parse_mouse_move() {
+        assert_eq!("move(1,2)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Move(1, 2), None)
+        )));
+        assert_eq!("ctrl-move(-5,10)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Move(-5, 10), Some(MouseModifier::Ctrl))
+        )));
+        assert_eq!("ctrl-move(-5,10)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Move(-5, 10), Some(MouseModifier::Ctrl))
+        )));
+    }
+
+    #[test]
+    fn parse_mouse_drag() {
+        assert_eq!("drag(left,1,2)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Drag(MouseButton::Left.into(), 1, 2), None)
+        )));
+        assert_eq!("drag(left+right,5,-3)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Drag(MouseButton::Left | MouseButton::Right, 5, -3), None)
+        )));
+        assert_eq!("ctrl-drag(middle,-10,15)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Drag(MouseButton::Middle.into(), -10, 15), Some(MouseModifier::Ctrl))
+        )));
+        assert_eq!("shift-drag(left+middle,0,0)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Drag(MouseButton::Left | MouseButton::Middle, 0, 0), Some(MouseModifier::Shift))
+        )));
+    }
+
+    #[test]
+    fn parse_wheel_syntax() {
+        assert_eq!("wheel(1)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Wheel(1), None)
+        )));
+        assert_eq!("wheel(-5)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Wheel(-5), None)
+        )));
+        assert_eq!("ctrl-wheel(3)".parse(), Ok(Macro::Mouse(
+            MouseEvent(MouseAction::Wheel(3), Some(MouseModifier::Ctrl))
+        )));
+    }
+
+    #[test]
+    fn parse_macro_with_delay() {
+        assert_eq!("{delay(100)}A".parse(), Ok(Macro::Keyboard(KeyboardEvent(
+            MacroOptions { delay: 100 },
+            vec![Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into()))]
+        ))));
+    }
+
+    #[test]
+    fn parse_macro_with_delay_multiple_keys() {
+        assert_eq!("{delay(500)}ctrl-A,B".parse(), Ok(Macro::Keyboard(KeyboardEvent(
+            MacroOptions { delay: 500 },
+            vec![
+                Accord::new(Modifier::Ctrl, Some(WellKnownCode::A.into())),
+                Accord::new(Modifiers::empty(), Some(WellKnownCode::B.into())),
+            ]
+        ))));
+    }
+
+    #[test]
+    fn parse_macro_with_zero_delay() {
+        assert_eq!("{delay(0)}A".parse(), Ok(Macro::Keyboard(KeyboardEvent(
+            MacroOptions { delay: 0 },
+            vec![Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into()))]
+        ))));
+    }
+
+    #[test]
+    fn parse_macro_with_large_delay() {
+        assert_eq!("{delay(65535)}A".parse(), Ok(Macro::Keyboard(KeyboardEvent(
+            MacroOptions { delay: 65535 },
+            vec![Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into()))]
+        ))));
+    }
+
+    #[test]
+    fn parse_macro_delay_invalid_syntax() {
+        assert!("{delay}A".parse::<Macro>().is_err());
+        assert!("{delay()}A".parse::<Macro>().is_err());
+        assert!("{delay(abc)}A".parse::<Macro>().is_err());
     }
 }

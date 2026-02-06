@@ -1,100 +1,31 @@
+pub(crate) mod k884x;
+pub(crate) mod k8890;
+
 use crate::parse;
 
-use std::{time::Duration, str::FromStr, fmt::Display};
+use std::{str::FromStr, fmt::Display};
 
-use log::debug;
-use rusb::{DeviceHandle, GlobalContext};
-use anyhow::{anyhow, ensure, Result};
+use anyhow::Result;
 use enumset::{EnumSetType, EnumSet};
+use log::debug;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
-use strum_macros::{EnumString, Display};
+use strum_macros::{EnumString, Display, EnumIter, EnumMessage};
 
 use itertools::Itertools as _;
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
+pub trait Keyboard {
+    fn bind_key(&self, layer: u8, key: Key, expansion: &Macro, output: &mut Vec<u8>) -> Result<()>;
+    fn set_led(&mut self, args: &[String], output: &mut Vec<u8>) -> Result<()>;
 
-pub struct Keyboard {
-    handle: DeviceHandle<GlobalContext>,
-    endpoint: u8,
-    buf: [u8; 65],
+    fn preferred_endpoint() -> u8 where Self: Sized;
 }
 
-impl Keyboard {
-    pub fn new(handle: DeviceHandle<GlobalContext>, endpoint: u8) -> Result<Self> {
-        let mut keyboard = Self { handle, endpoint, buf: [0; 65] };
-
-        keyboard.buf[0] = 0x03;
-        keyboard.send([0, 0, 0, 0, 0, 0, 0, 0])?;
-
-        Ok(keyboard)
-    }
-
-    pub fn bind_key(&mut self, layer: u8, key: Key, expansion: &Macro) -> Result<()> {
-        ensure!(layer <= 15, "invalid layer index");
-
-        debug!("bind {} on layer {} to {}", key, layer, expansion);
-
-        // Start key binding
-        self.send([0xa1, layer+1, 0, 0, 0, 0, 0, 0])?;
-
-        match expansion {
-            Macro::Keyboard(presses) => {
-                ensure!(presses.len() <= 5, "macro sequence is too long");
-                // For whatever reason empty key is added before others.
-                let iter = presses.iter().map(|accord| (accord.modifiers.as_u8(), accord.code.map_or(0, |c| c as u8)));
-                let (len, items) = (presses.len() as u8, Box::new(std::iter::once((0, 0)).chain(iter)));
-                for (i, (modifiers, code)) in items.enumerate() {
-                    self.send([
-                        key.to_key_id()?,
-                        ((layer+1) << 4) | expansion.kind(),
-                        len,
-                        i as u8,
-                        modifiers,
-                        code,
-                        0,
-                        0,
-                    ])?;
-                }
-            }
-            Macro::Media(code) => {
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x02, *code as u8, 0, 0, 0, 0, 0])?;
-            }
-
-            Macro::Mouse(MouseEvent(MouseAction::Click(buttons), modifier)) => {
-                ensure!(!buttons.is_empty(), "buttons must be given for click macro");
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, buttons.as_u8(), 0, 0, 0, modifier.map_or(0, |m| m as u8), 0])?;
-            }
-            Macro::Mouse(MouseEvent(MouseAction::WheelUp, modifier)) => {
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0x01, modifier.map_or(0, |m| m as u8), 0])?;
-            }
-            Macro::Mouse(MouseEvent(MouseAction::WheelDown, modifier)) => {
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x03, 0, 0, 0, 0xff, modifier.map_or(0, |m| m as u8), 0])?;
-            }
-            Macro::Layer(target) => {
-                self.send([key.to_key_id()?, ((layer+1) << 4) | 0x04, *target, 0, 0, 0, 0, 0])?;
-            }
-        };
-
-        // Finish key binding
-        self.send([0xaa, 0xaa, 0, 0, 0, 0, 0, 0])?;
-
-        Ok(())
-    }
-
-    pub fn set_led(&mut self, n: u8) -> Result<()> {
-        self.send([0xa1, 0x01, 0, 0, 0, 0, 0, 0])?;
-        self.send([0xb0, 0x18, n, 0, 0, 0, 0, 0])?;
-        self.send([0xaa, 0xa1, 0, 0, 0, 0, 0, 0])?;
-        Ok(())
-    }
-
-    fn send(&mut self, pkt: [u8; 8]) -> Result<()> {
-        self.buf[1..9].copy_from_slice(pkt.as_slice());
-        debug!("send: {:02x?}", self.buf);
-        let written = self.handle.write_interrupt(self.endpoint, &self.buf, DEFAULT_TIMEOUT)?;
-        ensure!(written == self.buf.len(), "not all data written");
-        Ok(())
-    }
+/// Helper function to send a message by appending it to the output buffer
+fn send_message(output: &mut Vec<u8>, msg: &[u8]) {
+    let mut buf = [0; 64];
+    buf[..msg.len()].copy_from_slice(msg);
+    debug!("send: {:02x?}", buf);
+    output.extend_from_slice(&buf);
 }
 
 #[allow(unused)]
@@ -125,21 +56,13 @@ impl Display for Key {
     }
 }
 
-impl Key {
-    fn to_key_id(self) -> Result<u8> {
-        match self {
-            Key::Button(n) if n >= 12 => Err(anyhow!("invalid key index")),
-            Key::Button(n) => Ok(n + 1),
-            Key::Knob(n, _) if n >= 3 => Err(anyhow!("invalid knob index")),
-            Key::Knob(n, action) => Ok(13 + 3*n + (action as u8)),
-        }
-    }
-}
 
-#[derive(Debug, EnumSetType, EnumString, Display)]
+#[derive(Debug, EnumSetType, EnumString, EnumIter, EnumMessage, Display)]
 #[strum(ascii_case_insensitive)]
 pub enum Modifier {
+    #[strum(serialize="ctrl")]
     Ctrl,
+    #[strum(serialize="shift")]
     Shift,
     #[strum(serialize="alt", serialize="opt")]
     Alt,
@@ -149,32 +72,76 @@ pub enum Modifier {
     RightCtrl,
     #[strum(serialize="rshift")]
     RightShift,
-    #[strum(serialize="ralt")]
+    #[strum(serialize="ralt", serialize="ropt")]
     RightAlt,
-    #[strum(serialize="rwin")]
+    #[strum(serialize="rwin", serialize="rcmd")]
     RightWin,
 }
 
 pub type Modifiers = EnumSet<Modifier>;
 
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, Display)]
-#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumIter, EnumMessage, Display)]
+#[repr(u16)]
+#[strum(serialize_all="lowercase")]
 #[strum(ascii_case_insensitive)]
 pub enum MediaCode {
-	Play = 0xcd,
+	Next = 0xb5,
     #[strum(serialize="previous", serialize="prev")]
 	Previous = 0xb6,
-	Next = 0xb5,
+	Stop = 0xb7,
+	Play = 0xcd,
 	Mute = 0xe2,
 	VolumeUp = 0xe9,
 	VolumeDown = 0xea,
+	Favorites = 0x182,
+	Calculator = 0x192,
+	ScreenLock = 0x19e,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Code {
+    WellKnown(WellKnownCode),
+    Custom(u8),
+}
+
+impl Display for Code {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Code::WellKnown(code) => write!(f, "{}", code),
+            Code::Custom(code) => write!(f, "<{}>", code),
+        }
+    }
+}
+
+impl From<WellKnownCode> for Code {
+    fn from(code: WellKnownCode) -> Self {
+        Self::WellKnown(code)
+    }
+}
+
+impl FromStr for Code {
+    type Err = nom::error::Error<String>;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        parse::from_str(parse::code, s)
+    }
+}
+
+impl Code {
+    pub fn value(self) -> u8 {
+        match self {
+            Self::WellKnown(code) => code as u8,
+            Self::Custom(code) => code,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumIter, Display)]
 #[repr(u8)]
 #[strum(ascii_case_insensitive)]
-pub enum Code {
+#[strum(serialize_all="lowercase")]
+pub enum WellKnownCode {
     A = 0x04,
     B,
     C,
@@ -242,7 +209,9 @@ pub enum Code {
     F11,
     F12,
     PrintScreen,
+    #[strum(serialize="scrolllock", serialize="macbrightnessdown")]
     ScrollLock,
+    #[strum(serialize="pause", serialize="macbrightnessup")]
     Pause,
     Insert,
     Home,
@@ -339,33 +308,40 @@ pub enum MouseModifier {
     Alt = 0x04,
 }
 
-#[derive(Debug, EnumSetType, Display)]
+#[derive(Debug, EnumSetType, EnumIter, EnumString, Display)]
+#[strum(serialize_all="lowercase")]
+#[strum(ascii_case_insensitive)]
 pub enum MouseButton {
-    #[strum(serialize="click")]
     Left,
-    #[strum(serialize="rclick")]
     Right,
-    #[strum(serialize="mclick")]
-    Middle
+    Middle,
 }
 
 pub type MouseButtons = EnumSet<MouseButton>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MouseAction {
+    Move(i8, i8),
+    Drag(MouseButtons, i8, i8),
     Click(MouseButtons),
-    WheelUp,
-    WheelDown,
+    Wheel(i8),
 }
 
 impl Display for MouseAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            MouseAction::Move(dx, dy) => {
+                write!(f, "move({},{})", dx, dy)?;
+            }
+            MouseAction::Drag(buttons, dx, dy) => {
+                write!(f, "drag({},{},{})", buttons.iter().format("+"), dx, dy)?;
+            }
             MouseAction::Click(buttons) => {
                 write!(f, "{}", buttons.iter().format("+"))?;
             }
-            MouseAction::WheelUp => { write!(f, "wheelup")?; }
-            MouseAction::WheelDown => { write!(f, "wheeldown")?; }
+            MouseAction::Wheel(value) => {
+                write!(f, "wheel({})", value)?;
+            }
         }
         Ok(())
     }
@@ -385,9 +361,17 @@ impl Display for MouseEvent {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct MacroOptions {
+    pub delay: u16,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeyboardEvent(pub MacroOptions, pub Vec<Accord>);
+
 #[derive(Debug, Clone, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)]
 pub enum Macro {
-    Keyboard(Vec<Accord>),
+    Keyboard(KeyboardEvent),
     #[allow(unused)]
     Media(MediaCode),
     #[allow(unused)]
@@ -417,8 +401,12 @@ impl FromStr for Macro {
 impl Display for Macro {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Macro::Keyboard(accords) => {
-                write!(f, "{}", accords.iter().format(","))
+            Macro::Keyboard(KeyboardEvent(opts, accords)) => {
+                if opts.delay != 0 {
+                    write!(f, "{{delay({})}}", opts.delay)?;
+                }
+                write!(f, "{}", accords.iter().format(","))?;
+                Ok(())
             }
             Macro::Media(code) => {
                 write!(f, "{}", code)
@@ -433,5 +421,69 @@ impl Display for Macro {
                 write!(f, "layer:{}", n)
             }
         }
+    }
+}
+
+#[cfg(test)]
+fn discard_trailing_zeroes(s: &[u8]) -> &[u8] {
+    let end =  s.iter().rposition(|&b| b != 0).map(|pos| pos+1).unwrap_or(s.len());
+    &s[..end]
+}
+
+#[cfg(test)]
+#[track_caller]
+fn assert_messages(actual: &[u8], expected: &[&[u8]]) {
+    assert!(actual.len() % 64 == 0);
+    assert_eq!(actual.len() / 64, expected.len(),
+        "expected number of messages: {}, actual: {}", expected.len(), actual.len() / 64);
+
+    for (i, (actual_msg, expected_msg)) in actual.chunks(64).zip(expected).enumerate() {
+        // Discard trailing zeroes for brevity.
+        assert_eq!(discard_trailing_zeroes(actual_msg), discard_trailing_zeroes(expected_msg),
+            "message #{}", i);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn display_macro_with_delay() {
+        let macro_with_delay = Macro::Keyboard(KeyboardEvent(
+            MacroOptions { delay: 250 },
+            vec![Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into()))]
+        ));
+        assert_eq!(macro_with_delay.to_string(), "{delay(250)}a");
+    }
+
+    #[test]
+    fn display_macro_without_delay() {
+        let macro_no_delay = Macro::Keyboard(KeyboardEvent(
+            MacroOptions::default(),
+            vec![Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into()))]
+        ));
+        assert_eq!(macro_no_delay.to_string(), "a");
+    }
+
+    #[test]
+    fn display_macro_with_delay_multiple_keys() {
+        let macro_with_delay = Macro::Keyboard(KeyboardEvent(
+            MacroOptions { delay: 500 },
+            vec![
+                Accord::new(Modifier::Ctrl, Some(WellKnownCode::A.into())),
+                Accord::new(Modifiers::empty(), Some(WellKnownCode::B.into())),
+            ]
+        ));
+        assert_eq!(macro_with_delay.to_string(), "{delay(500)}ctrl-a,b");
+    }
+
+    #[test]
+    fn display_macro_with_zero_delay() {
+        let macro_zero_delay = Macro::Keyboard(KeyboardEvent(
+            MacroOptions { delay: 0 },
+            vec![Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into()))]
+        ));
+        assert_eq!(macro_zero_delay.to_string(), "a");
     }
 }
