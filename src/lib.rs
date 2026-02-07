@@ -4,6 +4,8 @@ pub mod keyboard;
 pub mod options;
 pub mod parse;
 
+pub use crate::options::hex_or_decimal;
+
 use anyhow::{anyhow, bail, Result, ensure, Context as _};
 use indoc::indoc;
 use itertools::Itertools;

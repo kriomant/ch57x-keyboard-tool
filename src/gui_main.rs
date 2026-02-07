@@ -11,8 +11,9 @@ use std::str::FromStr;
 use std::fs::File;
 use enumset::EnumSet;
 use directories::ProjectDirs;
-use ch57x_keyboard_tool::{find_device, create_driver};
+use ch57x_keyboard_tool::{find_device, create_driver, open_device, send_to_device};
 use ch57x_keyboard_tool::options::DevelOptions;
+use strum::IntoEnumIterator;
 
 struct AppState {
     config: Config,
@@ -22,6 +23,7 @@ struct AppState {
     debug_buffer: TextBuffer,
     yml_buffer: TextBuffer,
     yml_container: Box,
+    detected_product_id: Arc<Mutex<Option<u16>>>,
 }
 
 fn main() {
@@ -71,7 +73,6 @@ fn get_default_config_path() -> Option<std::path::PathBuf> {
 }
 
 fn build_ui(app: &Application) {
-    // Determine startup config
     let config_path = get_default_config_path();
     let config = if let Some(ref path) = config_path {
         if path.exists() {
@@ -85,7 +86,6 @@ fn build_ui(app: &Application) {
 
     let last_saved_yml = serde_yaml::to_string(&config).unwrap_or_default();
 
-    // If it didn't exist, try to save it as default
     if let Some(ref path) = config_path {
         if !path.exists() {
             let _ = std::fs::create_dir_all(path.parent().unwrap());
@@ -98,6 +98,7 @@ fn build_ui(app: &Application) {
     let debug_buffer = TextBuffer::new(None::<&TextTagTable>);
     let yml_buffer = TextBuffer::new(None::<&TextTagTable>);
     let yml_container = Box::new(Orientation::Vertical, 0);
+    let detected_product_id = Arc::new(Mutex::new(None::<u16>));
     
     let state = Arc::new(Mutex::new(AppState { 
         config, 
@@ -107,9 +108,9 @@ fn build_ui(app: &Application) {
         debug_buffer: debug_buffer.clone(),
         yml_buffer: yml_buffer.clone(),
         yml_container: yml_container.clone(),
+        detected_product_id: detected_product_id.clone(),
     }));
 
-    // Log startup info
     if let Some(ref path) = config_path {
         log_debug(&debug_buffer, &format!("Config path: {}", path.display()));
     }
@@ -169,18 +170,21 @@ fn build_ui(app: &Application) {
     main_box.set_margin_start(12);
     main_box.set_margin_end(12);
     
-    // Status and diagnostic box
     let diag_box = Box::new(Orientation::Horizontal, 12);
     diag_box.set_halign(gtk::Align::Center);
     let diag_icon = Label::new(None);
     diag_icon.add_css_class("title-1");
     
+    let model_label = Label::new(Some("Model: Unknown"));
+    model_label.add_css_class("caption");
+
     let refresh_btn = Button::builder()
         .label("🔄 Refresh Status")
         .build();
 
     diag_box.append(&diag_icon);
     diag_box.append(&status_label);
+    diag_box.append(&model_label);
     diag_box.append(&refresh_btn);
     main_box.append(&diag_box);
 
@@ -250,16 +254,17 @@ fn build_ui(app: &Application) {
                         let config = state_clone.lock().unwrap().config.clone();
                         match save_config_to_path(&config, &path) {
                             Ok(_) => {
-                                {
+                                let debug_buffer = {
                                     let mut state = state_clone.lock().unwrap();
                                     state.last_saved_yml = serde_yaml::to_string(&config).unwrap_or_default();
                                     state.status_label.set_text(&format!("Saved to {}", path.display()));
-                                }
+                                    state.debug_buffer.clone()
+                                };
                                 update_yml_preview(&state_clone);
-                                log_debug(&state_clone.lock().unwrap().debug_buffer, &format!("Saved config to {}", path.display()));
+                                log_debug(&debug_buffer, &format!("Saved config to {}", path.display()));
                             },
                             Err(e) => {
-                                let state = state_clone.lock().unwrap();
+                                let mut state = state_clone.lock().unwrap();
                                 state.status_label.set_text(&format!("Save failed: {}", e));
                                 log_debug(&state.debug_buffer, &format!("Save failed: {}", e));
                             }
@@ -342,26 +347,63 @@ fn build_ui(app: &Application) {
     });
     button_box.append(&fix_perms_btn);
 
+    // LED Section
     let led_box = Box::new(Orientation::Horizontal, 6);
     led_box.set_halign(gtk::Align::Center);
-    led_box.append(&Label::new(Some("LED Mode:")));
-    let led_combo = ComboBoxText::new();
-    for i in 0..10 {
-        led_combo.append_text(&format!("Mode {}", i));
+    
+    let led_mode_box = Box::new(Orientation::Horizontal, 4);
+    led_mode_box.append(&Label::new(Some("LED:")));
+    
+    // For 8890 (simplified)
+    let led_combo_8890 = ComboBoxText::new();
+    for i in 0..10 { led_combo_8890.append_text(&format!("Mode {}", i)); }
+    led_combo_8890.set_active(Some(0));
+    
+    // For 884x (advanced)
+    let led_mode_884x = ComboBoxText::new();
+    led_mode_884x.append_text("Off");
+    led_mode_884x.append_text("Backlight");
+    led_mode_884x.append_text("Shock");
+    led_mode_884x.append_text("Shock2");
+    led_mode_884x.append_text("Press");
+    led_mode_884x.set_active(Some(1));
+
+    let led_color_884x = ComboBoxText::new();
+    for c in ["White", "Red", "Orange", "Yellow", "Green", "Cyan", "Blue", "Purple"] {
+        led_color_884x.append_text(c);
     }
-    led_combo.set_active(Some(0));
+    led_color_884x.set_active(Some(0));
+
+    let led_layer_884x = ComboBoxText::new();
+    for i in 0..3 { led_layer_884x.append_text(&format!("Layer {}", i)); }
+    led_layer_884x.set_active(Some(0));
+
+    led_mode_box.append(&led_combo_8890); // Default visible
     
     let state_clone = state.clone();
     let led_apply_button = Button::with_label("Apply LED");
-    let led_combo_clone = led_combo.clone();
+    let led_combo_8890_clone = led_combo_8890.clone();
+    let led_mode_884x_clone = led_mode_884x.clone();
+    let led_color_884x_clone = led_color_884x.clone();
+    let led_layer_884x_clone = led_layer_884x.clone();
+
     led_apply_button.connect_clicked(move |_| {
-        let active = led_combo_clone.active().unwrap_or(0) as u8;
+        let pid = *state_clone.lock().unwrap().detected_product_id.lock().unwrap();
+        let args = if pid == Some(0x8890) {
+            vec![led_combo_8890_clone.active().unwrap_or(0).to_string()]
+        } else {
+            let layer = led_layer_884x_clone.active().unwrap_or(0).to_string();
+            let mode = led_mode_884x_clone.active_text().unwrap_or_default().to_lowercase();
+            let color = led_color_884x_clone.active_text().unwrap_or_default().to_lowercase();
+            if mode == "off" { vec![layer, mode] } else { vec![layer, format!("{} {}", mode, color)] }
+        };
+
         let state = state_clone.lock().unwrap();
         state.status_label.set_text("Setting LED...");
-        match set_keyboard_led(active) {
+        match set_keyboard_led_generic(&args) {
             Ok(_) => {
-                state.status_label.set_text(&format!("LED set to Mode {}", active));
-                log_debug(&state.debug_buffer, &format!("LED mode {} applied.", active));
+                state.status_label.set_text("LED updated");
+                log_debug(&state.debug_buffer, &format!("Applied LED: {:?}", args));
             },
             Err(e) => {
                 state.status_label.set_text(&format!("LED failed: {}", e));
@@ -369,7 +411,8 @@ fn build_ui(app: &Application) {
             }
         }
     });
-    led_box.append(&led_combo);
+
+    led_box.append(&led_mode_box);
     led_box.append(&led_apply_button);
     main_box.append(&led_box);
 
@@ -417,17 +460,49 @@ fn build_ui(app: &Application) {
 
     let state_diag = state.clone();
     let diag_icon_clone = diag_icon.clone();
-    
+    let model_label_clone = model_label.clone();
+    let led_mode_box_clone = led_mode_box.clone();
+    let led_combo_8890_clone = led_combo_8890.clone();
+    let led_mode_884x_box = Box::new(Orientation::Horizontal, 4);
+    led_mode_884x_box.append(&led_layer_884x);
+    led_mode_884x_box.append(&led_mode_884x);
+    led_mode_884x_box.append(&led_color_884x);
+
     let run_diagnostic = move || {
         let res = find_keyboard();
         let log_msg;
         
         let (icon, msg) = match res {
-            Ok((device, _desc, _addr)) => {
+            Ok((device, _desc, product_id)) => {
                 let bus = device.bus_number();
                 let port = device.address();
                 let path = format!("/dev/bus/usb/{:03}/{:03}", bus, port);
                 
+                let model_name = match product_id {
+                    0x8890 => "K8890 (Simple)",
+                    0x8840 | 0x8842 | 0x8850 => "K884x (Advanced)",
+                    _ => "Unknown CH57x",
+                };
+                model_label_clone.set_text(&format!("Model: {} ({:04x})", model_name, product_id));
+
+                {
+                    let state = state_diag.lock().unwrap();
+                    let mut pid_lock = state.detected_product_id.lock().unwrap();
+                    if *pid_lock != Some(product_id) {
+                        *pid_lock = Some(product_id);
+                        // Update LED UI based on model
+                        if product_id == 0x8890 {
+                            if let Some(child) = led_mode_box_clone.first_child() {
+                                if child != led_combo_8890_clone { led_mode_box_clone.remove(&child); led_mode_box_clone.append(&led_combo_8890_clone); }
+                            }
+                        } else {
+                            if let Some(child) = led_mode_box_clone.first_child() {
+                                if child == led_combo_8890_clone { led_mode_box_clone.remove(&child); led_mode_box_clone.append(&led_mode_884x_box); }
+                            }
+                        }
+                    }
+                }
+
                 let rule_path = "/etc/udev/rules.d/50-ch57x-keyboard.rules";
                 let rule_info = if std::path::Path::new(rule_path).exists() {
                     match std::fs::read_to_string(rule_path) {
@@ -440,27 +515,19 @@ fn build_ui(app: &Application) {
 
                 match device.open() {
                     Ok(_) => {
-                        log_msg = format!("Diagnostic: Keyboard found at {}. R/W OK.\n{}", path, rule_info);
-                        (
-                            "✅", 
-                            format!("Keyboard detected at {}. Ready.", path),
-                        )
+                        log_msg = format!("Diagnostic: Keyboard ({:04x}) found at {}. R/W OK.\n{}", product_id, path, rule_info);
+                        ( "✅", format!("Keyboard {:04x} detected at {}. Ready.", product_id, path))
                     },
                     Err(_) => {
-                        log_msg = format!("Diagnostic: Keyboard found at {} but ACCESS DENIED.\n{}", path, rule_info);
-                        (
-                            "⚠️", 
-                            "Permissions Denied! Click 'Fix Linux Permissions' and re-plug.".to_string(),
-                        )
+                        log_msg = format!("Diagnostic: Keyboard ({:04x}) found at {} but ACCESS DENIED.\n{}", product_id, path, rule_info);
+                        ("⚠️", "Permissions Denied! Click 'Fix Linux Permissions' and re-plug.".to_string())
                     }
                 }
             },
             Err(_) => {
+                model_label_clone.set_text("Model: None");
                 log_msg = "Diagnostic: Searching for CH57x keyboard... Not found.".to_string();
-                (
-                    "❌", 
-                    "Keyboard not found. Connect it via USB.".to_string(),
-                )
+                ("❌", "Keyboard not found. Connect it via USB.".to_string())
             }
         };
 
@@ -482,8 +549,8 @@ fn build_ui(app: &Application) {
     let window = ApplicationWindow::builder()
         .application(app)
         .title("CH57x Keyboard Tool")
-        .default_width(900)
-        .default_height(900)
+        .default_width(950)
+        .default_height(950)
         .content(&content)
         .build();
 
@@ -744,22 +811,22 @@ fn show_macro_builder<F: Fn(Macro) + 'static>(parent: &gtk::Window, on_ok: F) {
     content.set_margin_start(12);
     content.set_margin_end(12);
 
-    let capture_label = Label::new(Some("Press keys to capture or use manual builder below:"));
-    content.append(&capture_label);
-
     let captured_macro = Arc::new(Mutex::new(None::<Macro>));
     let display_label = Label::new(Some("Captured: None"));
     display_label.add_css_class("title-2");
     content.append(&display_label);
 
-    let clear_btn = Button::with_label("Clear Captured");
+    let capture_box = Box::new(Orientation::Horizontal, 6);
+    capture_box.append(&Label::new(Some("Press keys to capture:")));
+    let clear_btn = Button::with_label("Clear");
     let display_label_clear = display_label.clone();
     let captured_macro_clear = captured_macro.clone();
     clear_btn.connect_clicked(move |_| {
         display_label_clear.set_text("Captured: None");
         *captured_macro_clear.lock().unwrap() = None;
     });
-    content.append(&clear_btn);
+    capture_box.append(&clear_btn);
+    content.append(&capture_box);
 
     let key_controller = EventControllerKey::new();
     let captured_macro_clone = captured_macro.clone();
@@ -795,68 +862,113 @@ fn show_macro_builder<F: Fn(Macro) + 'static>(parent: &gtk::Window, on_ok: F) {
     dialog.add_controller(key_controller);
 
     content.append(&gtk::Separator::new(Orientation::Horizontal));
-    content.append(&Label::new(Some("Manual Builder:")));
+    
+    let delay_box = Box::new(Orientation::Horizontal, 6);
+    delay_box.append(&Label::new(Some("Delay (ms):")));
+    let delay_adj = Adjustment::new(0.0, 0.0, 6000.0, 10.0, 100.0, 0.0);
+    let delay_spin = SpinButton::new(Some(&delay_adj), 10.0, 0);
+    delay_box.append(&delay_spin);
+    content.append(&delay_box);
 
     let type_combo = ComboBoxText::new();
-    type_combo.append_text("Keyboard");
+    type_combo.append_text("Keyboard / Sequence");
     type_combo.append_text("Media");
-    type_combo.append_text("Mouse");
+    type_combo.append_text("Mouse Click / Scroll");
+    type_combo.append_text("Mouse Move / Drag");
     type_combo.append_text("Text (max 5 chars)");
     type_combo.append_text("Layer Switch");
+    type_combo.append_text("Custom HID Code");
     type_combo.set_active(Some(0));
     content.append(&type_combo);
 
     let stack = gtk::Stack::new();
     
+    // Keyboard Page
     let kbd_box = Box::new(Orientation::Vertical, 6);
-    kbd_box.append(&Label::new(Some("Enter macro text (e.g. ctrl-c):")));
+    kbd_box.append(&Label::new(Some("Enter macro sequence (e.g. ctrl-c,v):")));
     let kbd_entry = Entry::new();
     kbd_box.append(&kbd_entry);
     stack.add_titled(&kbd_box, Some("keyboard"), "Keyboard");
 
+    // Media Page
     let media_combo = ComboBoxText::new();
-    for code in [MediaCode::Play, MediaCode::Mute, MediaCode::VolumeUp, MediaCode::VolumeDown, MediaCode::Next, MediaCode::Previous] {
-        media_combo.append_text(&code.to_string());
-    }
+    for m in MediaCode::iter() { media_combo.append_text(&m.to_string()); }
     media_combo.set_active(Some(0));
     stack.add_titled(&media_combo, Some("media"), "Media");
 
-    let mouse_box = Box::new(Orientation::Vertical, 6);
-    let mouse_combo = ComboBoxText::new();
-    mouse_combo.append_text("Left Click");
-    mouse_combo.append_text("Right Click");
-    mouse_combo.append_text("Middle Click");
-    mouse_combo.append_text("Wheel Up");
-    mouse_combo.append_text("Wheel Down");
-    mouse_combo.set_active(Some(0));
-    mouse_box.append(&mouse_combo);
-    stack.add_titled(&mouse_box, Some("mouse"), "Mouse");
+    // Mouse Click Page
+    let mouse_click_box = Box::new(Orientation::Vertical, 6);
+    let mouse_btn_combo = ComboBoxText::new();
+    mouse_btn_combo.append_text("Left");
+    mouse_btn_combo.append_text("Right");
+    mouse_btn_combo.append_text("Middle");
+    mouse_btn_combo.append_text("Left + Right");
+    mouse_btn_combo.set_active(Some(0));
+    mouse_click_box.append(&Label::new(Some("Buttons:")));
+    mouse_click_box.append(&mouse_btn_combo);
+    
+    mouse_click_box.append(&Label::new(Some("Scroll:")));
+    let scroll_adj = Adjustment::new(0.0, -128.0, 127.0, 1.0, 10.0, 0.0);
+    let scroll_spin = SpinButton::new(Some(&scroll_adj), 1.0, 0);
+    mouse_click_box.append(&scroll_spin);
+    stack.add_titled(&mouse_click_box, Some("mouse_click"), "Mouse Click");
 
+    // Mouse Move Page
+    let mouse_move_box = Box::new(Orientation::Vertical, 6);
+    let move_type = ComboBoxText::new();
+    move_type.append_text("Move Cursor");
+    move_type.append_text("Drag (Left Button)");
+    move_type.set_active(Some(0));
+    mouse_move_box.append(&move_type);
+    
+    let xy_grid = Grid::new();
+    xy_grid.set_column_spacing(6);
+    let x_adj = Adjustment::new(0.0, -128.0, 127.0, 1.0, 10.0, 0.0);
+    let x_spin = SpinButton::new(Some(&x_adj), 1.0, 0);
+    let y_adj = Adjustment::new(0.0, -128.0, 127.0, 1.0, 10.0, 0.0);
+    let y_spin = SpinButton::new(Some(&y_adj), 1.0, 0);
+    xy_grid.attach(&Label::new(Some("X:")), 0, 0, 1, 1);
+    xy_grid.attach(&x_spin, 1, 0, 1, 1);
+    xy_grid.attach(&Label::new(Some("Y:")), 2, 0, 1, 1);
+    xy_grid.attach(&y_spin, 3, 0, 1, 1);
+    mouse_move_box.append(&xy_grid);
+    stack.add_titled(&mouse_move_box, Some("mouse_move"), "Mouse Move");
+
+    // Text Page
     let text_box = Box::new(Orientation::Vertical, 6);
     text_box.append(&Label::new(Some("Enter text to type:")));
     let text_entry = Entry::builder().max_length(5).build();
     text_box.append(&text_entry);
     stack.add_titled(&text_box, Some("text"), "Text");
 
+    // Layer Switch Page
     let layer_box = Box::new(Orientation::Vertical, 6);
     let layer_combo = ComboBoxText::new();
     layer_combo.append_text("Next Layer");
-    for i in 0..16 {
-        layer_combo.append_text(&format!("Layer {}", i));
-    }
+    for i in 0..16 { layer_combo.append_text(&format!("Layer {}", i)); }
     layer_combo.set_active(Some(0));
     layer_box.append(&layer_combo);
     stack.add_titled(&layer_box, Some("layer"), "Layer Switch");
 
+    // Custom HID Page
+    let hid_box = Box::new(Orientation::Horizontal, 6);
+    hid_box.append(&Label::new(Some("HID Code:")));
+    let hid_adj = Adjustment::new(4.0, 1.0, 255.0, 1.0, 10.0, 0.0);
+    let hid_spin = SpinButton::new(Some(&hid_adj), 1.0, 0);
+    hid_box.append(&hid_spin);
+    stack.add_titled(&hid_box, Some("hid"), "Custom HID");
+
     content.append(&stack);
 
     type_combo.connect_changed(move |c| {
-        match c.active_text().as_deref() {
-            Some("Keyboard") => stack.set_visible_child_name("keyboard"),
-            Some("Media") => stack.set_visible_child_name("media"),
-            Some("Mouse") => stack.set_visible_child_name("mouse"),
-            Some("Text (max 5 chars)") => stack.set_visible_child_name("text"),
-            Some("Layer Switch") => stack.set_visible_child_name("layer"),
+        match c.active().unwrap_or(0) {
+            0 => stack.set_visible_child_name("keyboard"),
+            1 => stack.set_visible_child_name("media"),
+            2 => stack.set_visible_child_name("mouse_click"),
+            3 => stack.set_visible_child_name("mouse_move"),
+            4 => stack.set_visible_child_name("text"),
+            5 => stack.set_visible_child_name("layer"),
+            6 => stack.set_visible_child_name("hid"),
             _ => {}
         }
     });
@@ -864,61 +976,84 @@ fn show_macro_builder<F: Fn(Macro) + 'static>(parent: &gtk::Window, on_ok: F) {
     let type_combo_clone = type_combo.clone();
     let kbd_entry_clone = kbd_entry.clone();
     let media_combo_clone = media_combo.clone();
-    let mouse_combo_clone = mouse_combo.clone();
+    let mouse_btn_combo_clone = mouse_btn_combo.clone();
+    let scroll_spin_clone = scroll_spin.clone();
+    let move_type_clone = move_type.clone();
+    let x_spin_clone = x_spin.clone();
+    let y_spin_clone = y_spin.clone();
     let text_entry_clone = text_entry.clone();
     let layer_combo_clone = layer_combo.clone();
+    let hid_spin_clone = hid_spin.clone();
+    let delay_spin_clone = delay_spin.clone();
 
     dialog.connect_response(move |d, response| {
         if response == ResponseType::Ok {
             let final_macro = if let Some(m) = captured_macro.lock().unwrap().clone() {
-                Some(m)
+                // Apply delay to captured macro if needed
+                let delay = delay_spin_clone.value() as u16;
+                if delay > 0 {
+                    if let Macro::Keyboard(KeyboardEvent(_, accords)) = m {
+                        Some(Macro::Keyboard(KeyboardEvent(MacroOptions { delay }, accords)))
+                    } else { Some(m) }
+                } else { Some(m) }
             } else {
-                match type_combo_clone.active_text().as_deref() {
-                    Some("Keyboard") => Macro::from_str(&kbd_entry_clone.text()).ok(),
-                    Some("Media") => {
-                        let text = media_combo_clone.active_text().unwrap_or_default();
-                        MediaCode::from_str(&text).ok().map(Macro::Media)
-                    }
-                    Some("Mouse") => {
-                        match mouse_combo_clone.active_text().as_deref() {
-                            Some("Left Click") => Some(Macro::Mouse(MouseEvent(MouseAction::Click(MouseButton::Left.into()), None))),
-                            Some("Right Click") => Some(Macro::Mouse(MouseEvent(MouseAction::Click(MouseButton::Right.into()), None))),
-                            Some("Middle Click") => Some(Macro::Mouse(MouseEvent(MouseAction::Click(MouseButton::Middle.into()), None))),
-                            Some("Wheel Up") => Some(Macro::Mouse(MouseEvent(MouseAction::Wheel(1), None))),
-                            Some("Wheel Down") => Some(Macro::Mouse(MouseEvent(MouseAction::Wheel(-1), None))),
-                            _ => None
+                match type_combo_clone.active().unwrap_or(0) {
+                    0 => {
+                        let text = kbd_entry_clone.text();
+                        let delay = delay_spin_clone.value() as u16;
+                        if delay > 0 {
+                            Macro::from_str(&format!("{{delay({})}}{}", delay, text)).ok()
+                        } else {
+                            Macro::from_str(&text).ok()
                         }
                     },
-                    Some("Text (max 5 chars)") => {
+                    1 => MediaCode::from_str(&media_combo_clone.active_text().unwrap_or_default()).ok().map(Macro::Media),
+                    2 => {
+                        let scroll = scroll_spin_clone.value() as i8;
+                        if scroll != 0 {
+                            Some(Macro::Mouse(MouseEvent(MouseAction::Wheel(scroll), None)))
+                        } else {
+                            let buttons = match mouse_btn_combo_clone.active().unwrap_or(0) {
+                                0 => MouseButton::Left.into(),
+                                1 => MouseButton::Right.into(),
+                                2 => MouseButton::Middle.into(),
+                                _ => MouseButton::Left | MouseButton::Right,
+                            };
+                            Some(Macro::Mouse(MouseEvent(MouseAction::Click(buttons), None)))
+                        }
+                    },
+                    3 => {
+                        let dx = x_spin_clone.value() as i8;
+                        let dy = y_spin_clone.value() as i8;
+                        let action = if move_type_clone.active() == Some(1) {
+                            MouseAction::Drag(MouseButton::Left.into(), dx, dy)
+                        } else {
+                            MouseAction::Move(dx, dy)
+                        };
+                        Some(Macro::Mouse(MouseEvent(action, None)))
+                    },
+                    4 => {
                         let text = text_entry_clone.text();
-                        let accords: Vec<Accord> = text.chars()
-                            .filter_map(|c| char_to_code(c))
-                            .map(|code| Accord::new(EnumSet::empty(), Some(code)))
-                            .collect();
+                        let accords: Vec<Accord> = text.chars().filter_map(|c| char_to_code(c))
+                            .map(|code| Accord::new(EnumSet::empty(), Some(code))).collect();
                         if !accords.is_empty() {
-                            Some(Macro::Keyboard(KeyboardEvent(MacroOptions::default(), accords)))
-                        } else {
-                            None
-                        }
+                            Some(Macro::Keyboard(KeyboardEvent(MacroOptions { delay: delay_spin_clone.value() as u16 }, accords)))
+                        } else { None }
                     },
-                    Some("Layer Switch") => {
+                    5 => {
                         let active = layer_combo_clone.active().unwrap_or(0);
-                        if active == 0 {
-                            Some(Macro::Layer(0))
-                        } else {
-                            Some(Macro::Layer((active - 1) as u8))
-                        }
-                    }
+                        Some(Macro::Layer(if active == 0 { 0 } else { (active - 1) as u8 }))
+                    },
+                    6 => Some(Macro::Keyboard(KeyboardEvent(MacroOptions::default(), vec![
+                        Accord::new(EnumSet::empty(), Some(Code::Custom(hid_spin_clone.value() as u8)))
+                    ]))),
                     _ => None
                 }
             };
-            if let Some(m) = final_macro {
-                on_ok(m);
-            }
+            if let Some(m) = final_macro { on_ok(m); }
         }
         d.destroy();
     });
-
     dialog.present();
 }
 
@@ -926,22 +1061,12 @@ fn find_keyboard() -> Result<(Device<Context>, DeviceDescriptor, u16)> {
     find_device(&DevelOptions::default())
 }
 
-fn set_keyboard_led(mode: u8) -> Result<()> {
+fn set_keyboard_led_generic(args: &[String]) -> Result<()> {
     let (_device, _desc, product_id) = find_keyboard()?;
     let mut keyboard = create_driver(product_id, 0, 0)?;
-    
-    // Construct LED args for k884x or k8890
-    let args = if product_id == 0x8890 {
-        vec![mode.to_string()]
-    } else {
-        // Default to layer 0 and the provided mode stringified if possible, 
-        // but GUI currently simplified to just mode index.
-        vec!["0".to_string(), format!("backlight white")] // Placeholder for 884x
-    };
-
     let (handle, endpoint, _) = ch57x_keyboard_tool::open_device(&DevelOptions::default())?;
     let mut output = Vec::new();
-    keyboard.set_led(&args, &mut output)?;
+    keyboard.set_led(args, &mut output)?;
     ch57x_keyboard_tool::send_to_device(&handle, endpoint, &output)?;
     Ok(())
 }
@@ -966,10 +1091,8 @@ fn upload_config(config: &Config) -> Result<()> {
         for (knob_idx, knob) in layer.knobs.iter().enumerate() {
             let ccw = knob.ccw.as_ref().unwrap_or(&empty_macro);
             keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCCW), ccw, &mut output)?;
-
             let press = knob.press.as_ref().unwrap_or(&empty_macro);
             keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::Press), press, &mut output)?;
-
             let cw = knob.cw.as_ref().unwrap_or(&empty_macro);
             keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCW), cw, &mut output)?;
         }
