@@ -24,7 +24,19 @@ serde_yaml = "0.9"
 nom = "7.1"
 strum = "0.24"
 strum_macros = "0.24"
+chrono = "0.4"
+directories = "4.0"
 indoc = "1.0"
+gtk4 = "0.9"
+adw = { package = "libadwaita", version = "0.7" }
+
+[[bin]]
+name = "ch57x-keyboard-tool"
+path = "src/main.rs"
+
+[[bin]]
+name = "ch57x-keyboard-gui"
+path = "src/gui_main.rs"
 
 [package.metadata.release]
 pre-release-replacements = [

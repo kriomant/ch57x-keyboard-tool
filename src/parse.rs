@@ -21,6 +21,16 @@ fn media_code(s: &str) -> IResult<&str, MediaCode> {
     map_res(alpha1, MediaCode::from_str)(s)
 }
 
+fn layer_switch(s: &str) -> IResult<&str, u8> {
+    alt((
+        value(0, tag("nextlayer")),
+        map_res(
+            tuple((tag("layer:"), digit1)),
+            |(_, n): (&str, &str)| u8::from_str(n)
+        ),
+    ))(s)
+}
+
 pub fn code(s: &str) -> IResult<&str, Code> {
     let mut parser = alt((
         map(
@@ -168,6 +178,7 @@ pub fn r#macro(s: &str) -> IResult<&str, Macro> {
     let mut parser = alt((
         map(mouse_event, Macro::Mouse),
         map(media_code, Macro::Media),
+        map(layer_switch, Macro::Layer),
         map(keyboard_event, Macro::Keyboard),
     ));
     parser(s)

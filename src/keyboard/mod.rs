@@ -8,7 +8,7 @@ use std::{str::FromStr, fmt::Display};
 use anyhow::Result;
 use enumset::{EnumSetType, EnumSet};
 use log::debug;
-use serde_with::DeserializeFromStr;
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 use strum_macros::{EnumString, Display, EnumIter, EnumMessage};
 
 use itertools::Itertools as _;
@@ -258,7 +258,7 @@ pub enum WellKnownCode {
     F24,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, DeserializeFromStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)]
 pub struct Accord {
     pub modifiers: Modifiers,
     pub code: Option<Code>,
@@ -369,13 +369,14 @@ pub struct MacroOptions {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyboardEvent(pub MacroOptions, pub Vec<Accord>);
 
-#[derive(Debug, Clone, PartialEq, Eq, DeserializeFromStr)]
+#[derive(Debug, Clone, PartialEq, Eq, DeserializeFromStr, SerializeDisplay)]
 pub enum Macro {
     Keyboard(KeyboardEvent),
     #[allow(unused)]
     Media(MediaCode),
     #[allow(unused)]
     Mouse(MouseEvent),
+    Layer(u8),
 }
 
 impl Macro {
@@ -384,6 +385,7 @@ impl Macro {
             Macro::Keyboard(_) => 1,
             Macro::Media(_) => 2,
             Macro::Mouse(_) => 3,
+            Macro::Layer(_) => 4,
         }
     }
 }
@@ -411,6 +413,12 @@ impl Display for Macro {
             }
             Macro::Mouse(event) => {
                 write!(f, "{}", event)
+            }
+            Macro::Layer(0) => {
+                write!(f, "nextlayer")
+            }
+            Macro::Layer(n) => {
+                write!(f, "layer:{}", n)
             }
         }
     }

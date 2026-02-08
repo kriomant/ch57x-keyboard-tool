@@ -58,6 +58,9 @@ impl Keyboard for Keyboard8890 {
             Macro::Mouse(MouseEvent(MouseAction::Wheel(delta), modifier)) => {
                 send_message(output, &[0x03, self.to_key_id(key)?, ((layer+1) << 4) | 0x03, 0, 0, 0, *delta as u8, modifier.map_or(0, |m| m as u8), 0]);
             }
+            Macro::Layer(target) => {
+                send_message(output, &[0x03, self.to_key_id(key)?, ((layer+1) << 4) | 0x04, *target, 0, 0, 0, 0, 0]);
+            }
         };
 
         // Finish key binding

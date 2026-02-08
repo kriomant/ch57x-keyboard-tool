@@ -33,6 +33,18 @@ pub struct DevelOptions {
     pub interface_number: Option<u8>,
 }
 
+impl Default for DevelOptions {
+    fn default() -> Self {
+        Self {
+            vendor_id: VENDOR_ID,
+            product_id: None,
+            address: None,
+            endpoint_address: None,
+            interface_number: None,
+        }
+    }
+}
+
 pub fn hex_or_decimal(s: &str) -> Result<u16, ParseIntError>
 {
     if s.to_ascii_lowercase().starts_with("0x") {

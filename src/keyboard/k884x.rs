@@ -159,6 +159,9 @@ impl Keyboard for Keyboard884x {
             Macro::Mouse(MouseEvent(MouseAction::Wheel(delta), modifier)) => {
                 msg.extend_from_slice(&[0x03, modifier.map_or(0, |m| m as u8), 0, 0, 0, *delta as u8]);
             }
+            Macro::Layer(target) => {
+                msg.extend_from_slice(&[0x04, *target, 0, 0, 0]);
+            }
         };
 
         send_message(output, &msg);

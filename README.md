@@ -10,6 +10,8 @@
     * [Prebuilt release](#prebuilt-release)
     * [Build it yourself](#build-it-yourself)
 * [Usage](#usage)
+    * [GUI Tool (Recommended)](#gui-tool-recommended)
+    * [CLI Tool](#cli-tool)
     * [Commands and options](#commands-and-options)
     * [Validate the config file](#validate-the-config-file)
     * [Upload the config to the keyboard](#upload-the-config-to-the-keyboard)
@@ -90,6 +92,33 @@ Install [USBDK](https://github.com/daynix/UsbDk/releases).
 3. Validate the configuration file.
 4. Upload the configuration to the keyboard.
 5. Done! 🎉
+
+### GUI Tool (Recommended)
+
+A modern GTK4/Adwaita interface for easy configuration.
+
+#### Prerequisites (Linux)
+You need GTK4, Libadwaita, and USB development libraries:
+```bash
+# Debian/Ubuntu
+sudo apt install pkg-config libgtk-4-dev libadwaita-1-dev libusb-1.0-0-dev
+```
+
+#### Run
+Launch the graphical interface to configure macros, layers, and hardware settings visually:
+```bash
+cargo run --bin ch57x-keyboard-gui
+```
+
+The GUI tool includes a **Diagnostic Console** at the bottom. If you see "Permissions Denied", click the **"Fix Linux Permissions"** button in the app to automatically install the required udev rules.
+
+### CLI Tool
+
+Now create you own config from provided *example-mapping.yaml*, and apply:
+
+```sh
+ch57x-keyboard-tool upload your-config.yaml
+```
 
 ### Create configuration file
 
