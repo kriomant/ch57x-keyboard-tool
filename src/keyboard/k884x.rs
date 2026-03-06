@@ -213,7 +213,7 @@ impl Keyboard for Keyboard884x {
 impl Keyboard884x {
     pub fn new(buttons: u8, knobs: u8) -> Result<Self> {
         ensure!(
-            (buttons <= 15 && knobs <= 3) ||
+            (buttons <= 16 && knobs <= 3) ||
             (buttons <= 12 && knobs <= 4),
             "unsupported combination of buttons and knobs count"
         );
@@ -221,20 +221,18 @@ impl Keyboard884x {
     }
 
     fn to_key_id(&self, key: Key) -> Result<u8> {
-        const MAX_NUMBER_OF_BUTTONS: u8 = 15;
+        // Key IDs are 1-based: buttons use IDs 1..=buttons, knobs follow after.
+        // Exception: keyboards with 12 buttons and 4 knobs map the fourth knob
+        // to IDs 13-15 (reusing button slots) instead of the expected 25-27.
+        const BASE_BUTTONS: u8 = 15;
         match key {
-            Key::Button(n) if n >= MAX_NUMBER_OF_BUTTONS => Err(anyhow::anyhow!("invalid key index")),
-
-            // There are keyboards with 15 buttons and 3 knobs, so NUMBER_OF_BUTTONS is correct
-            // overall. However, there are keyboards with 12 buttons and 4 knobs, and fourth knob
-            // doesn't use 25-27 codes as it should, but use 13-15, which are allocated for buttons.
-            // So, it seems, they exchange one row of buttons to extra knob.
+            Key::Button(n) if n >= self.buttons => Err(anyhow::anyhow!("invalid key index")),
             Key::Button(n) if n >= 12 && self.knobs == 4 => Err(anyhow::anyhow!("invalid key index")),
             Key::Knob(3, action) if self.buttons <= 12 => Ok(13 + (action as u8)),
 
             Key::Button(n) => Ok(n + 1),
             Key::Knob(n, _) if n >= 3 => Err(anyhow::anyhow!("invalid knob index")),
-            Key::Knob(n, action) => Ok(MAX_NUMBER_OF_BUTTONS + 1 + 3 * n + (action as u8)),
+            Key::Knob(n, action) => Ok(BASE_BUTTONS + 1 + 3 * n + (action as u8)),
         }
     }
 }

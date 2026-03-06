@@ -9,7 +9,7 @@ use std::io::{BufReader, Read, StdinLock};
 use crate::config::Config;
 use crate::consts::PRODUCT_IDS;
 use crate::keyboard::{
-    k884x, k8890, Keyboard, KnobAction, MediaCode, Modifier,
+    k884x, k8850, k8890, Keyboard, KnobAction, MediaCode, Modifier,
     WellKnownCode,
 };
 use crate::options::{Command, LedCommand, TestLedCommand};
@@ -218,7 +218,8 @@ fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u
     );
 
     let preferred_endpoint = match id_product {
-        0x8840 | 0x8842 | 0x8850 => k884x::Keyboard884x::preferred_endpoint(),
+        0x8840 | 0x8842 => k884x::Keyboard884x::preferred_endpoint(),
+        0x8850 => k8850::Keyboard8850::preferred_endpoint(),
         0x8890 => k8890::Keyboard8890::preferred_endpoint(),
         _ => unreachable!("unsupported device"),
     };
@@ -245,8 +246,11 @@ fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u
 
 fn create_driver(id_product: u16, buttons: u8, knobs: u8) -> Result<Box<dyn Keyboard>> {
     let keyboard: Box<dyn Keyboard> = match id_product {
-        0x8840 | 0x8842 | 0x8850 => {
+        0x8840 | 0x8842 => {
             Box::new(k884x::Keyboard884x::new(buttons, knobs)?)
+        }
+        0x8850 => {
+            Box::new(k8850::Keyboard8850::new(buttons, knobs)?)
         }
         0x8890 => {
             Box::new(k8890::Keyboard8890::new())
@@ -257,6 +261,8 @@ fn create_driver(id_product: u16, buttons: u8, knobs: u8) -> Result<Box<dyn Keyb
 }
 
 fn find_device(devel_options: &DevelOptions) -> Result<(Device<Context>, DeviceDescriptor, u16)> {
+    use crate::consts::VENDOR_ID_ALT;
+
     let options = vec![
         #[cfg(windows)] rusb::UsbOption::use_usbdk(),
     ];
@@ -273,7 +279,11 @@ fn find_device(devel_options: &DevelOptions) -> Result<(Device<Context>, DeviceD
             desc.product_id()
         );
         let product_id = desc.product_id();
-        if desc.vendor_id() == devel_options.vendor_id
+        // Match the user-specified VID, or also try the alternate VID (0x514C)
+        // used by some 8850 keyboards.
+        let vid_match = desc.vendor_id() == devel_options.vendor_id
+            || desc.vendor_id() == VENDOR_ID_ALT;
+        if vid_match
             && match devel_options.product_id {
                 Some(prod_id) => prod_id == product_id,
                 None => PRODUCT_IDS.contains(&product_id),
