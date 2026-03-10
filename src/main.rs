@@ -102,6 +102,12 @@ fn main() -> Result<()> {
                 }
             }
 
+            // Apply LED config if any layer has it
+            let led_configs: Vec<_> = layers.iter().map(|l| l.leds.as_ref().cloned()).collect();
+            if led_configs.iter().any(|l| l.is_some()) {
+                keyboard.set_led_config(&led_configs, &mut output)?;
+            }
+
             // Send all accumulated data to device
             send_to_device(&handle, endpoint, &output)?;
         }

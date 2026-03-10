@@ -18,6 +18,11 @@ pub trait Keyboard {
     fn bind_key(&self, layer: u8, key: Key, expansion: &Macro, output: &mut Vec<u8>) -> Result<()>;
     fn set_led(&mut self, args: &[String], output: &mut Vec<u8>) -> Result<()>;
 
+    /// Set per-layer LED config from YAML. Default is no-op.
+    fn set_led_config(&self, _layers: &[Option<serde_yaml::Value>], _output: &mut Vec<u8>) -> Result<()> {
+        Ok(())
+    }
+
     fn preferred_endpoint() -> u8 where Self: Sized;
 }
 

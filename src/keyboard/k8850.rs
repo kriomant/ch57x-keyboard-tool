@@ -1,6 +1,145 @@
+use std::str::FromStr;
+use clap::Parser;
+use nom::{IResult, branch::alt, bytes::complete::tag, character::complete::alpha1, combinator::{map, map_res, value}, sequence::preceded};
+use serde_with::DeserializeFromStr;
+
 use anyhow::{ensure, Result};
 
 use super::{Key, Keyboard, Macro, KeyboardEvent, Modifier, MouseEvent, MouseAction, MouseModifier, send_message};
+
+/// LED modes for the K8850 firmware (confirmed via hardware testing).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DeserializeFromStr)]
+pub enum LedMode {
+    Off,
+    Static(Color),
+    Reactive(Color),
+    Ripple(Color),
+    RainbowRows,
+    RainbowCols,
+}
+
+impl LedMode {
+    fn mode_byte(&self) -> u8 {
+        match self {
+            LedMode::Off => 0,
+            LedMode::Static(_) => 1,
+            LedMode::Reactive(_) => 2,
+            LedMode::Ripple(_) => 3,
+            LedMode::RainbowRows => 4,
+            LedMode::RainbowCols => 5,
+        }
+    }
+
+    fn color(&self) -> Color {
+        match self {
+            LedMode::Off => Color { r: 0, g: 0, b: 0 },
+            LedMode::Static(c) | LedMode::Reactive(c) | LedMode::Ripple(c) => *c,
+            LedMode::RainbowRows | LedMode::RainbowCols => Color { r: 0, g: 0, b: 0 },
+        }
+    }
+}
+
+impl FromStr for LedMode {
+    type Err = nom::error::Error<String>;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        crate::parse::from_str(led_mode, s)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+}
+
+impl<'de> serde::Deserialize<'de> for Color {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where D: serde::Deserializer<'de> {
+        let s = String::deserialize(deserializer)?;
+        Color::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+impl serde::Serialize for Color {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        serializer.serialize_str(&format!("#{:02x}{:02x}{:02x}", self.r, self.g, self.b))
+    }
+}
+
+impl FromStr for Color {
+    type Err = String;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "red" => return Ok(Color { r: 255, g: 0, b: 0 }),
+            "green" => return Ok(Color { r: 0, g: 255, b: 0 }),
+            "blue" => return Ok(Color { r: 0, g: 0, b: 255 }),
+            "white" => return Ok(Color { r: 255, g: 255, b: 255 }),
+            "yellow" => return Ok(Color { r: 255, g: 255, b: 0 }),
+            "cyan" => return Ok(Color { r: 0, g: 255, b: 255 }),
+            "magenta" => return Ok(Color { r: 255, g: 0, b: 255 }),
+            "orange" => return Ok(Color { r: 255, g: 128, b: 0 }),
+            "purple" => return Ok(Color { r: 128, g: 0, b: 255 }),
+            _ => {}
+        }
+        if let Some(hex) = s.strip_prefix('#') {
+            if hex.len() == 6 {
+                let r = u8::from_str_radix(&hex[0..2], 16).map_err(|e| e.to_string())?;
+                let g = u8::from_str_radix(&hex[2..4], 16).map_err(|e| e.to_string())?;
+                let b = u8::from_str_radix(&hex[4..6], 16).map_err(|e| e.to_string())?;
+                return Ok(Color { r, g, b });
+            }
+        }
+        Err(format!("unknown color '{}'. Use: red, green, blue, white, yellow, cyan, magenta, orange, purple, or #RRGGBB", s))
+    }
+}
+
+fn hex_color(s: &str) -> IResult<&str, Color> {
+    use nom::bytes::complete::take;
+    let (s, _) = tag("#")(s)?;
+    let (s, hex) = take(6usize)(s)?;
+    let r = u8::from_str_radix(&hex[0..2], 16).map_err(|_| nom::Err::Failure(nom::error::Error::new(s, nom::error::ErrorKind::HexDigit)))?;
+    let g = u8::from_str_radix(&hex[2..4], 16).map_err(|_| nom::Err::Failure(nom::error::Error::new(s, nom::error::ErrorKind::HexDigit)))?;
+    let b = u8::from_str_radix(&hex[4..6], 16).map_err(|_| nom::Err::Failure(nom::error::Error::new(s, nom::error::ErrorKind::HexDigit)))?;
+    Ok((s, Color { r, g, b }))
+}
+
+fn color(s: &str) -> IResult<&str, Color> {
+    alt((hex_color, map_res(alpha1, Color::from_str)))(s)
+}
+
+fn led_mode(s: &str) -> IResult<&str, LedMode> {
+    alt((
+        value(LedMode::Off, tag("off")),
+        map(preceded(tag("static "), color), LedMode::Static),
+        map(preceded(tag("reactive "), color), LedMode::Reactive),
+        map(preceded(tag("ripple "), color), LedMode::Ripple),
+        value(LedMode::RainbowRows, tag("rainbow-rows")),
+        value(LedMode::RainbowCols, tag("rainbow-cols")),
+        value(LedMode::RainbowRows, tag("rainbow")),
+    ))(s)
+}
+
+fn parse_led_mode(s: &str) -> Result<LedMode, String> {
+    crate::parse::from_str(led_mode, s).map_err(|e| format!("Invalid LED mode: {:?}", e))
+}
+
+#[derive(Parser, Debug)]
+struct LedArgs {
+    layer: u8,
+    #[arg(value_parser=parse_led_mode)]
+    mode: LedMode,
+}
+
+/// YAML structure for per-layer LED config. Parsed internally by the k8850 driver.
+#[derive(Debug, serde::Deserialize)]
+struct LedYamlConfig {
+    mode: LedMode,
+    colors: Vec<Vec<Color>>,
+}
+
+const NUM_KEY_SLOTS: usize = 16;
 
 /// Driver for keyboards with product ID 0x8850 (e.g. XZKJ-16key_3knob).
 ///
@@ -128,8 +267,64 @@ impl Keyboard for Keyboard8850 {
         Ok(())
     }
 
-    fn set_led(&mut self, _args: &[String], _output: &mut Vec<u8>) -> Result<()> {
-        anyhow::bail!("LED control is not yet supported for the 8850 (16-key + 3-knob variant)");
+    fn set_led(&mut self, args: &[String], output: &mut Vec<u8>) -> Result<()> {
+        let led_args = LedArgs::try_parse_from(args)?;
+
+        let target_layer = led_args.layer;
+        ensure!(target_layer < 3, "Layer must be 0-2");
+
+        let mode = led_args.mode.mode_byte();
+        let color = led_args.mode.color();
+
+        for layer in 0..3u8 {
+            let mut msg = if layer == target_layer {
+                let mut m = vec![0x03, 0xFE, 0xB0, layer, mode, color.r, color.g, color.b];
+                for _ in 0..NUM_KEY_SLOTS {
+                    m.extend_from_slice(&[color.r, color.g, color.b]);
+                }
+                m
+            } else {
+                let mut m = vec![0x03, 0xFE, 0xB0, layer, 0x00, 0x00, 0x00, 0x00];
+                for _ in 0..NUM_KEY_SLOTS {
+                    m.extend_from_slice(&[0x00, 0x00, 0x00]);
+                }
+                m
+            };
+            msg.truncate(64);
+            send_message(output, &msg);
+        }
+
+        Ok(())
+    }
+
+    fn set_led_config(&self, layers: &[Option<serde_yaml::Value>], output: &mut Vec<u8>) -> Result<()> {
+        for layer in 0..3u8 {
+            let layer_config = layers.get(layer as usize).and_then(|l| l.as_ref());
+            let mut msg = if let Some(value) = layer_config {
+                let config: LedYamlConfig = serde_yaml::from_value(value.clone())
+                    .map_err(|e| anyhow::anyhow!("invalid LED config for layer {}: {}", layer, e))?;
+                let mode = config.mode.mode_byte();
+                let flat_colors: Vec<Color> = config.colors.into_iter().flatten().collect();
+                let base = flat_colors.first().copied()
+                    .unwrap_or(Color { r: 0, g: 0, b: 0 });
+                let mut m = vec![0x03, 0xFE, 0xB0, layer, mode, base.r, base.g, base.b];
+                for i in 0..NUM_KEY_SLOTS {
+                    let c = flat_colors.get(i).copied()
+                        .unwrap_or(Color { r: 0, g: 0, b: 0 });
+                    m.extend_from_slice(&[c.r, c.g, c.b]);
+                }
+                m
+            } else {
+                let mut m = vec![0x03, 0xFE, 0xB0, layer, 0x00, 0x00, 0x00, 0x00];
+                for _ in 0..NUM_KEY_SLOTS {
+                    m.extend_from_slice(&[0x00, 0x00, 0x00]);
+                }
+                m
+            };
+            msg.truncate(64);
+            send_message(output, &msg);
+        }
+        Ok(())
     }
 
     fn preferred_endpoint() -> u8 where Self: Sized {
@@ -309,6 +504,50 @@ mod tests {
         // Should be 2 messages: the key binding + the finalize
         assert_eq!(output.len(), 2 * 64);
         assert_msg(&output, 1, &[0x03, 0xFD, 0xFE, 0xFF]);
+    }
+
+    #[test]
+    fn test_led_static_red() {
+        let mut kb = Keyboard8850::new(16, 3).unwrap();
+        let mut output = Vec::new();
+        kb.set_led(&["led".to_string(), "0".to_string(), "static red".to_string()], &mut output).unwrap();
+
+        assert_eq!(output.len(), 3 * 64);
+        let led0 = &output[0..64];
+        assert_eq!(led0[0], 0x03);
+        assert_eq!(led0[1], 0xFE);
+        assert_eq!(led0[2], 0xB0);
+        assert_eq!(led0[3], 0x00);
+        assert_eq!(led0[4], 0x01);
+        assert_eq!(led0[5], 0xFF);
+        assert_eq!(led0[6], 0x00);
+        assert_eq!(led0[7], 0x00);
+    }
+
+    #[test]
+    fn test_led_off() {
+        let mut kb = Keyboard8850::new(16, 3).unwrap();
+        let mut output = Vec::new();
+        kb.set_led(&["led".to_string(), "0".to_string(), "off".to_string()], &mut output).unwrap();
+        let led0 = &output[0..64];
+        assert_eq!(led0[4], 0x00);
+    }
+
+    #[test]
+    fn parse_led_modes() {
+        assert_eq!("off".parse(), Ok(LedMode::Off));
+        assert_eq!("static red".parse(), Ok(LedMode::Static(Color { r: 255, g: 0, b: 0 })));
+        assert_eq!("reactive blue".parse(), Ok(LedMode::Reactive(Color { r: 0, g: 0, b: 255 })));
+        assert_eq!("ripple green".parse(), Ok(LedMode::Ripple(Color { r: 0, g: 255, b: 0 })));
+        assert_eq!("rainbow".parse(), Ok(LedMode::RainbowRows));
+        assert_eq!("rainbow-rows".parse(), Ok(LedMode::RainbowRows));
+        assert_eq!("rainbow-cols".parse(), Ok(LedMode::RainbowCols));
+    }
+
+    #[test]
+    fn parse_hex_color() {
+        assert_eq!(Color::from_str("#FF8000"), Ok(Color { r: 255, g: 128, b: 0 }));
+        assert_eq!(Color::from_str("#000000"), Ok(Color { r: 0, g: 0, b: 0 }));
     }
 
 }
