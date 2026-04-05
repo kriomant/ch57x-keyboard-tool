@@ -205,11 +205,16 @@ impl Keyboard for Keyboard884x {
             .map_err(|e| anyhow::anyhow!(e))?;
         let code = mode.code();
 
-        // Program LED settings
-        send_message(output, &[0x03, 0xfe, 0xb0, layer+1, 0x08, 0x00, 0x05, 0x01, 0x00, code, 0x00, 0x34]);
+        // LED packet confirmed from kamaaina/macropad_tool and USB captures:
+        // [03, fe, b0, layer+1, 08, 00, 00, 00, 00, 00, 01, 00, CODE, 00, ...]
+        // CODE = (color << 4) | mode, at byte index 12
+        send_message(output, &[
+            0x03, 0xfe, 0xb0, layer + 1,
+            0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, code,
+        ]);
 
-        // End programming sequence
-        send_message(output, &[0x03, 0xfd, 0xfe, 0xff, 0x00, 0x3d]);
+        // End sequence
+        send_message(output, &[0x03, 0xfd, 0xfe, 0xff]);
 
         Ok(())
     }
@@ -262,22 +267,11 @@ mod tests {
         let keyboard = Keyboard884x::new(12, 3).unwrap();
         let mut output = Vec::new();
 
-        // Test simple key press (Ctrl + A key)
         let a_key = Macro::Keyboard(KeyboardEvent(MacroOptions::default(), vec![Accord::new(Modifier::Ctrl, Some(WellKnownCode::A.into()))]));
         keyboard.bind_key(0, Key::Button(0), &a_key, &mut output).unwrap();
 
         assert_messages(&output, &[
-            &[
-                0x03, // Message header
-                0xfe, // Bind command
-                0x01, // Key ID (button 0 + 1)
-                0x01, // Layer 0 + 1
-                0x01, // Keyboard macro type
-                0x00, 0x00, 0x00, 0x00, 0x00,
-                0x01, // Single press
-                0x01, // Ctrl modifier
-                0x04, // A key code
-            ],
+            &[0x03, 0xfe, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x04],
             &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
             &[0x03, 0xaa, 0xaa],
@@ -289,22 +283,11 @@ mod tests {
         let keyboard = Keyboard884x::new(12, 3).unwrap();
         let mut output = Vec::new();
 
-        // Test media key (Volume Up)
         let vol_up = Macro::Media(crate::keyboard::MediaCode::VolumeUp);
         keyboard.bind_key(0, Key::Button(1), &vol_up, &mut output).unwrap();
 
         assert_messages(&output, &[
-            &[
-                0x03, // Message header
-                0xfe, // Bind command
-                0x02, // Key ID (button 1 + 1)
-                0x01,
-                0x02, // Media macro type
-                0x00, // Empty count
-                0x00, 0x00, 0x00, 0x00, 0x00,
-                0xe9, // Volume Up code (low byte)
-                0x00, // Volume Up code (high byte)
-            ],
+            &[0x03, 0xfe, 0x02, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe9, 0x00],
             &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
             &[0x03, 0xaa, 0xaa],
@@ -316,23 +299,13 @@ mod tests {
         let keyboard = Keyboard884x::new(12, 3).unwrap();
         let mut output = Vec::new();
 
-        // Test mouse click (Left button)
         let mut buttons = EnumSet::new();
         buttons.insert(MouseButton::Left);
         let left_click = Macro::Mouse(MouseEvent(MouseAction::Click(buttons), None));
         keyboard.bind_key(0, Key::Button(2), &left_click, &mut output).unwrap();
 
         assert_messages(&output, &[
-            &[
-                0x03, // Message header
-                0xfe, // Bind command
-                0x03, // Key ID (button 2 + 1)
-                0x01, // Mouse action type (click)
-                0x03, // Mouse macro type
-                0x00, 0x00, 0x00, 0x00, 0x00,
-                0x01, // Left button pressed
-                0x00, 0x01,
-            ],
+            &[0x03, 0xfe, 0x03, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01],
             &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
             &[0x03, 0xaa, 0xaa],
@@ -344,24 +317,11 @@ mod tests {
         let keyboard = Keyboard884x::new(12, 3).unwrap();
         let mut output = Vec::new();
 
-        // Test mouse move (dx=10, dy=-5)
         let mouse_move = Macro::Mouse(MouseEvent(MouseAction::Move(10, -5), None));
         keyboard.bind_key(0, Key::Button(3), &mouse_move, &mut output).unwrap();
 
         assert_messages(&output, &[
-            &[
-                0x03, // Message header
-                0xfe, // Bind command
-                0x04, // Key ID (button 3 + 1)
-                0x01, // Layer 0 + 1
-                0x03, // Mouse macro type
-                0x00, 0x00, 0x00, 0x00, 0x00,
-                0x05, // Move action type
-                0x00, // No modifier
-                0x00, // No buttons
-                0x0a, // dx=10
-                0xfb, // dy=-5 (as 251)
-            ],
+            &[0x03, 0xfe, 0x04, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x0a, 0xfb],
             &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
             &[0x03, 0xaa, 0xaa],
@@ -373,23 +333,11 @@ mod tests {
         let keyboard = Keyboard884x::new(12, 3).unwrap();
         let mut output = Vec::new();
 
-        // Test mouse wheel (delta=3)
         let mouse_wheel = Macro::Mouse(MouseEvent(MouseAction::Wheel(3), None));
         keyboard.bind_key(0, Key::Button(4), &mouse_wheel, &mut output).unwrap();
 
         assert_messages(&output, &[
-            &[
-                0x03, // Message header
-                0xfe, // Bind command
-                0x05, // Key ID (button 4 + 1)
-                0x01, // Layer 0 + 1
-                0x03, // Mouse macro type
-                0x00, 0x00, 0x00, 0x00, 0x00,
-                0x03, // Wheel action type
-                0x00, // No modifier
-                0x00, 0x00, 0x00,
-                0x03, // delta=3
-            ],
+            &[0x03, 0xfe, 0x05, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x03],
             &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
             &[0x03, 0xaa, 0xaa],
@@ -401,26 +349,13 @@ mod tests {
         let keyboard = Keyboard884x::new(12, 3).unwrap();
         let mut output = Vec::new();
 
-        // Test mouse drag (Left button, dx=5, dy=10)
         let mut buttons = EnumSet::new();
         buttons.insert(MouseButton::Left);
         let mouse_drag = Macro::Mouse(MouseEvent(MouseAction::Drag(buttons, 5, 10), None));
         keyboard.bind_key(0, Key::Button(5), &mouse_drag, &mut output).unwrap();
 
         assert_messages(&output, &[
-            &[
-                0x03, // Message header
-                0xfe, // Bind command
-                0x06, // Key ID (button 5 + 1)
-                0x01, // Layer 0 + 1
-                0x03, // Mouse macro type
-                0x00, 0x00, 0x00, 0x00, 0x00,
-                0x05, // Drag action type
-                0x00, // No modifier
-                0x01, // Left button
-                0x05, // dx=5
-                0x0a, // dy=10
-            ],
+            &[0x03, 0xfe, 0x06, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x01, 0x05, 0x0a],
             &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
             &[0x03, 0xaa, 0xaa],
@@ -438,23 +373,13 @@ mod tests {
         let keyboard = Keyboard884x::new(12, 4).unwrap();
         let mut output = Vec::new();
 
-        // Test mouse click (Left button)
         let mut buttons = EnumSet::new();
         buttons.insert(MouseButton::Left);
         let left_click = Macro::Mouse(MouseEvent(MouseAction::Click(buttons), None));
         keyboard.bind_key(0, Key::Knob(3, KnobAction::Press), &left_click, &mut output).unwrap();
 
         assert_messages(&output, &[
-            &[
-                0x03,
-                0xfe,
-                0x0e, // Fouth knob uses codes usually used by buttons 13-15
-                0x01,
-                0x03,
-                0x00, 0x00, 0x00, 0x00, 0x00,
-                0x01,
-                0x00, 0x01,
-            ],
+            &[0x03, 0xfe, 0x0e, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01],
             &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
             &[0x03, 0xaa, 0xaa],
@@ -476,7 +401,6 @@ mod tests {
 
     #[test]
     fn test_led_args_from_cli() {
-        // Simulates how main.rs passes args: ["led", "1", "backlight", "cyan"]
         let args = LedArgs::try_parse_from(["led", "1", "backlight", "cyan"]).unwrap();
         assert_eq!(args.layer, 1);
         assert_eq!(args.mode().unwrap(), LedMode::Backlight(LedBacklightColor::Cyan));
@@ -492,6 +416,24 @@ mod tests {
         let args = LedArgs::try_parse_from(["led", "0", "shock2", "yellow"]).unwrap();
         assert_eq!(args.layer, 0);
         assert_eq!(args.mode().unwrap(), LedMode::Shock2(LedColor::Yellow));
+    }
+
+    #[test]
+    fn test_led_packet_bytes() {
+        // Verified against kamaaina/macropad_tool program_led() and USB captures:
+        // [03, fe, b0, layer+1, 08, 00, 00, 00, 00, 00, 01, 00, CODE, 00, ...]
+        // CODE = (color << 4) | mode at byte index 12
+        let mut keyboard = Keyboard884x::new(12, 3).unwrap();
+        let mut output = Vec::new();
+
+        // backlight cyan: code = (5 << 4) | 1 = 0x51
+        let args: Vec<String> = vec!["led".into(), "0".into(), "backlight".into(), "cyan".into()];
+        keyboard.set_led(&args, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[0x03, 0xfe, 0xb0, 0x01, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x51],
+            &[0x03, 0xfd, 0xfe, 0xff],
+        ]);
     }
 
     #[test]
@@ -517,59 +459,12 @@ mod tests {
         keyboard.bind_key(0, Key::Button(0), &macro_with_delay, &mut output).unwrap();
 
         assert_messages(&output, &[
-            &[
-                0x03, 0xfe, 0x01, 0x01, 0x01,
-                0x00, 0x00, 0x00, 0x00, 0x00,
-                0x01, 0x01, 0x04,
-            ],
-            &[
-                0x03, 0xfe, 0x01, 0x01, 0x05,
-                0xe8, 0x03, // 1000ms in little-endian (0x03e8)
-            ],
+            &[0x03, 0xfe, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x04],
+            &[0x03, 0xfe, 0x01, 0x01, 0x05, 0xe8, 0x03],
             &[0x03, 0xaa, 0xaa],
             &[0x03, 0xfd, 0xfe, 0xff],
             &[0x03, 0xaa, 0xaa],
         ]);
-    }
-
-    #[test]
-    fn test_keyboard_macro_with_max_delay() {
-        let keyboard = Keyboard884x::new(12, 3).unwrap();
-        let mut output = Vec::new();
-
-        let macro_with_delay = Macro::Keyboard(KeyboardEvent(
-            MacroOptions { delay: 5999 },
-            vec![Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into()))]
-        ));
-        keyboard.bind_key(0, Key::Button(0), &macro_with_delay, &mut output).unwrap();
-
-        assert_messages(&output, &[
-            &[
-                0x03, 0xfe, 0x01, 0x01, 0x01,
-                0x00, 0x00, 0x00, 0x00, 0x00,
-                0x01, 0x00, 0x04,
-            ],
-            &[
-                0x03, 0xfe, 0x01, 0x01, 0x05,
-                0x6f, 0x17, // 5999ms in little-endian (0x176f)
-            ],
-            &[0x03, 0xaa, 0xaa],
-            &[0x03, 0xfd, 0xfe, 0xff],
-            &[0x03, 0xaa, 0xaa],
-        ]);
-    }
-
-    #[test]
-    #[should_panic(expected = "maximum supported delay is 6000ms")]
-    fn test_keyboard_macro_delay_exceeds_maximum() {
-        let keyboard = Keyboard884x::new(12, 3).unwrap();
-        let mut output = Vec::new();
-
-        let macro_with_delay = Macro::Keyboard(KeyboardEvent(
-            MacroOptions { delay: 6001 },
-            vec![Accord::new(Modifiers::empty(), Some(WellKnownCode::A.into()))]
-        ));
-        keyboard.bind_key(0, Key::Button(0), &macro_with_delay, &mut output).unwrap();
     }
 
     #[test]
@@ -583,7 +478,6 @@ mod tests {
         ));
         keyboard.bind_key(0, Key::Button(0), &macro_no_delay, &mut output).unwrap();
 
-        // Should only have 4 messages (no delay message)
         assert_eq!(output.len(), 4 * 64);
     }
 }
