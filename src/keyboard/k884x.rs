@@ -100,9 +100,16 @@ struct LedArgs {
     /// Layer to set the LED (0-based)
     layer: u8,
 
-    /// LED mode
-    #[arg(value_parser=parse_led_mode)]
-    mode: LedMode,
+    /// LED mode and optional color (e.g. "off", "backlight cyan", "press purple")
+    #[arg(num_args=1..)]
+    mode_args: Vec<String>,
+}
+
+impl LedArgs {
+    fn mode(&self) -> Result<LedMode, String> {
+        let combined = self.mode_args.join(" ");
+        parse_led_mode(&combined)
+    }
 }
 
 pub struct Keyboard884x {
@@ -194,7 +201,9 @@ impl Keyboard for Keyboard884x {
         let layer = led_args.layer;
         ensure!(layer < 3, "Layer must be 0-2");
 
-        let code = led_args.mode.code();
+        let mode = led_args.mode()
+            .map_err(|e| anyhow::anyhow!(e))?;
+        let code = mode.code();
 
         // Program LED settings
         send_message(output, &[0x03, 0xfe, 0xb0, layer+1, 0x08, 0x00, 0x05, 0x01, 0x00, code, 0x00, 0x34]);
@@ -463,6 +472,26 @@ mod tests {
 
         assert!("press black".parse::<LedMode>().is_err());
         assert!("boom red".parse::<LedMode>().is_err());
+    }
+
+    #[test]
+    fn test_led_args_from_cli() {
+        // Simulates how main.rs passes args: ["led", "1", "backlight", "cyan"]
+        let args = LedArgs::try_parse_from(["led", "1", "backlight", "cyan"]).unwrap();
+        assert_eq!(args.layer, 1);
+        assert_eq!(args.mode().unwrap(), LedMode::Backlight(LedBacklightColor::Cyan));
+
+        let args = LedArgs::try_parse_from(["led", "0", "press", "purple"]).unwrap();
+        assert_eq!(args.layer, 0);
+        assert_eq!(args.mode().unwrap(), LedMode::Press(LedColor::Purple));
+
+        let args = LedArgs::try_parse_from(["led", "2", "off"]).unwrap();
+        assert_eq!(args.layer, 2);
+        assert_eq!(args.mode().unwrap(), LedMode::Off);
+
+        let args = LedArgs::try_parse_from(["led", "0", "shock2", "yellow"]).unwrap();
+        assert_eq!(args.layer, 0);
+        assert_eq!(args.mode().unwrap(), LedMode::Shock2(LedColor::Yellow));
     }
 
     #[test]
