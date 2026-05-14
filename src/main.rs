@@ -9,7 +9,7 @@ use std::io::{BufReader, Read, StdinLock};
 use crate::config::Config;
 use crate::consts::PRODUCT_IDS;
 use crate::keyboard::{
-    k884x, k8890, Keyboard, KnobAction, MediaCode, Modifier,
+    k884x, k8850, k8890, Keyboard, KnobAction, MediaCode, Modifier,
     WellKnownCode,
 };
 use crate::options::{Command, LedCommand, TestLedCommand};
@@ -100,6 +100,12 @@ fn main() -> Result<()> {
                         keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCW), macro_, &mut output)?;
                     }
                 }
+            }
+
+            // Apply LED config if any layer has it
+            let led_configs: Vec<_> = layers.iter().map(|l| l.leds.as_ref().cloned()).collect();
+            if led_configs.iter().any(|l| l.is_some()) {
+                keyboard.set_led_config(&led_configs, &mut output)?;
             }
 
             // Send all accumulated data to device
@@ -245,8 +251,11 @@ fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u
 
 fn create_driver(id_product: u16, buttons: u8, knobs: u8) -> Result<Box<dyn Keyboard>> {
     let keyboard: Box<dyn Keyboard> = match id_product {
-        0x8840 | 0x8842 | 0x8850 => {
+        0x8840 | 0x8842 => {
             Box::new(k884x::Keyboard884x::new(buttons, knobs)?)
+        }
+        0x8850 => {
+            Box::new(k8850::Keyboard8850::new(buttons, knobs)?)
         }
         0x8890 => {
             Box::new(k8890::Keyboard8890::new())

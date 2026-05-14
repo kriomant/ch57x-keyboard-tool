@@ -45,7 +45,7 @@ impl Config {
                 }
             }
 
-            Ok(FlatLayer { buttons, knobs })
+            Ok(FlatLayer { buttons, knobs, leds: layer.leds })
         }).collect()
     }
 }
@@ -69,6 +69,8 @@ impl Orientation {
 pub struct Layer {
     pub buttons: Vec<Vec<Option<Macro>>>,
     pub knobs: Vec<Knob>,
+    #[serde(default)]
+    pub leds: Option<serde_yaml::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -81,6 +83,7 @@ pub struct Knob {
 pub struct FlatLayer {
     pub buttons: Vec<Option<Macro>>,
     pub knobs: Vec<Knob>,
+    pub leds: Option<serde_yaml::Value>,
 }
 
 fn reorient_grid<T: Clone>(orientation: Orientation, rows: usize, cols: usize, data: Vec<Vec<T>>) -> Vec<T> {
@@ -182,6 +185,7 @@ mod tests {
                         ],
                     ],
                     knobs: vec![Knob { ccw: None, press: None, cw: None }],
+                    leds: None,
                 },
             ],
         };
