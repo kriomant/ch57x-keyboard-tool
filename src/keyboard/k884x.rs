@@ -197,10 +197,14 @@ impl Keyboard for Keyboard884x {
         let code = led_args.mode.code();
 
         // Program LED settings
-        send_message(output, &[0x03, 0xfe, 0xb0, layer+1, 0x08, 0x00, 0x05, 0x01, 0x00, code, 0x00, 0x34]);
+        send_message(output, &[
+            0x03, 0xfe, 0xb0, layer + 1,
+            0x08, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x01, 0x00, code,
+        ]);
 
         // End programming sequence
-        send_message(output, &[0x03, 0xfd, 0xfe, 0xff, 0x00, 0x3d]);
+        send_message(output, &[0x03, 0xfd, 0xfe, 0xff]);
 
         Ok(())
     }
@@ -463,6 +467,24 @@ mod tests {
 
         assert!("press black".parse::<LedMode>().is_err());
         assert!("boom red".parse::<LedMode>().is_err());
+    }
+
+    #[test]
+    fn test_led_packet_bytes() {
+        // Verified against kamaaina/macropad_tool program_led() and USB captures:
+        // [03, fe, b0, layer+1, 08, 00, 00, 00, 00, 00, 01, 00, CODE, 00, ...]
+        // CODE = (color << 4) | mode at byte index 12
+        let mut keyboard = Keyboard884x::new(12, 3).unwrap();
+        let mut output = Vec::new();
+
+        // backlight cyan: code = (5 << 4) | 1 = 0x51
+        let args: Vec<String> = vec!["led".into(), "0".into(), "backlight cyan".into()];
+        keyboard.set_led(&args, &mut output).unwrap();
+
+        assert_messages(&output, &[
+            &[0x03, 0xfe, 0xb0, 0x01, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x51],
+            &[0x03, 0xfd, 0xfe, 0xff],
+        ]);
     }
 
     #[test]
