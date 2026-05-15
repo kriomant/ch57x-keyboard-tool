@@ -1,10 +1,12 @@
-use anyhow::{bail, ensure, Result};
+use anyhow::{anyhow, bail, ensure, Result};
 use serde::Deserialize;
+use strum_macros::{Display, EnumString};
 
 use crate::keyboard::{Macro, KeyboardEvent};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+    pub model: Option<KeyboardModel>,
     pub orientation: Orientation,
     pub rows: u8,
     pub columns: u8,
@@ -47,6 +49,38 @@ impl Config {
 
             Ok(FlatLayer { buttons, knobs })
         }).collect()
+    }
+}
+
+// Keyboard model names are mostly meaningless.
+// They are deliberately not based on PID, as same PID may be used by
+// completely different models.
+// And there are no stable identifiers reported by keyboard which may
+// be used to distinguish them, or I just don't know which one to use.
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, EnumString, Display)]
+#[serde(rename_all = "kebab-case")]
+#[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "kebab-case")]
+#[allow(non_camel_case_types)]
+pub enum KeyboardModel {
+    Ch57x_1,
+    Ch57x_2,
+}
+
+impl KeyboardModel {
+    pub fn supports_product_id(self, product_id: u16) -> bool {
+        match self {
+            Self::Ch57x_1 => matches!(product_id, 0x8840 | 0x8842 | 0x8850),
+            Self::Ch57x_2 => product_id == 0x8890,
+        }
+    }
+
+    pub fn from_product_id(product_id: u16) -> Result<Self> {
+        match product_id {
+            0x8840 | 0x8842 | 0x8850 => Ok(Self::Ch57x_1),
+            0x8890 => Ok(Self::Ch57x_2),
+            _ => Err(anyhow!("unsupported device")),
+        }
     }
 }
 
@@ -114,7 +148,7 @@ fn reorient_row<T>(orientation: Orientation, mut data: Vec<T>) -> Vec<T> {
 mod tests {
     use crate::config::Layer;
 
-    use super::{reorient_grid, Config, Knob, Orientation};
+    use super::{reorient_grid, Config, KeyboardModel, Knob, Orientation};
 
     use std::path::PathBuf;
 
@@ -168,6 +202,7 @@ mod tests {
     #[should_panic(expected="can handle modifiers for first key in sequence only")]
     fn test_limited_keyboard() {
         let config = Config {
+            model: None,
             orientation: Orientation::Normal,
             rows: 1,
             columns: 3,
@@ -186,5 +221,23 @@ mod tests {
             ],
         };
         config.render().unwrap();
+    }
+
+    #[test]
+    fn parse_keyboard_model() -> anyhow::Result<()> {
+        let config: Config = serde_yaml::from_str(indoc::indoc! {"
+            model: k884x
+            orientation: normal
+            rows: 1
+            columns: 1
+            knobs: 0
+            layers:
+              - buttons:
+                  - [null]
+                knobs: []
+        "})?;
+
+        assert_eq!(config.model, Some(KeyboardModel::Ch57x_1));
+        Ok(())
     }
 }

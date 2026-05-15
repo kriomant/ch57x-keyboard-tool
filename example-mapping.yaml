@@ -2,6 +2,10 @@
 # may be assigned to keys. Comments here describe only configuration
 # file format itself.
 
+# Keyboard model. This is used to choose the correct keyboard implementation
+# and find a matching USB device.
+model: ch57x-2
+
 # Normal keyboard orientation is when
 # buttons are on the left side and knobs are on the right.
 # However, you may want to use the keyboard in another orientation.

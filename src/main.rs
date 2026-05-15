@@ -6,7 +6,7 @@ mod parse;
 
 use std::io::{BufReader, Read, StdinLock};
 
-use crate::config::Config;
+use crate::config::{Config, KeyboardModel};
 use crate::consts::PRODUCT_IDS;
 use crate::keyboard::{
     k884x, k8890, Keyboard, KnobAction, MediaCode, Modifier,
@@ -15,7 +15,7 @@ use crate::keyboard::{
 use crate::options::{Command, LedCommand, TestLedCommand};
 use crate::{keyboard::Key, options::Options};
 
-use anyhow::{Result, anyhow, bail, ensure};
+use anyhow::{Result, anyhow, ensure};
 use indoc::indoc;
 use itertools::Itertools;
 use log::debug;
@@ -72,11 +72,17 @@ fn main() -> Result<()> {
         Command::Upload(params) => {
             let config: Config = load_config(&params)
                 .context("load mapping config")?;
+            let configured_model = config.model;
             let (buttons, knobs) = (config.rows * config.columns, config.knobs);
             let layers = config.render().context("render mapping config")?;
 
-            let (handle, endpoint, id_product) = open_device(&options.devel_options)?;
-            let keyboard = create_driver(id_product, buttons, knobs)?;
+            let (handle, endpoint, model) = open_device(&options.devel_options, configured_model)?;
+            if configured_model.is_none() {
+                eprintln!(
+                    "⚠️ Configuration file does not specify `model`. This field will be required in a future version. Add `model: {model}`."
+                );
+            }
+            let keyboard = create_driver(model, buttons, knobs)?;
 
             let mut output = Vec::new();
 
@@ -107,9 +113,9 @@ fn main() -> Result<()> {
         }
 
         Command::Led(LedCommand { mut args }) => {
-            let (handle, endpoint, id_product) = open_device(&options.devel_options)?;
+            let (handle, endpoint, model) = open_device(&options.devel_options, None)?;
             // TODO: fix this dirty hack
-            let mut keyboard = create_driver(id_product, 0, 0)?;
+            let mut keyboard = create_driver(model, 0, 0)?;
             let mut output = Vec::new();
 
             args.insert(0, "led".to_string());
@@ -122,7 +128,8 @@ fn main() -> Result<()> {
                 .ok_or_else(|| anyhow!("test-led command requires --product-id to be specified"))?;
 
             // Create driver without USB device initialization
-            let mut keyboard = create_driver(product_id, 0, 0)?;
+            let model = KeyboardModel::from_product_id(product_id)?;
+            let mut keyboard = create_driver(model, 0, 0)?;
             let mut output = Vec::new();
 
             // Validate LED arguments
@@ -208,19 +215,23 @@ fn send_to_device(handle: &DeviceHandle<Context>, endpoint: u8, output: &[u8]) -
     Ok(())
 }
 
-fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u8, u16)> {
-    // Find USB device based on the product id
-    let (device, desc, id_product) = find_device(devel_options).context("find USB device")?;
+fn open_device(
+    devel_options: &DevelOptions,
+    configured_model: Option<KeyboardModel>,
+) -> Result<(DeviceHandle<Context>, u8, KeyboardModel)> {
+    // Find USB device based on the configured model or product id
+    let (device, desc, model) = find_device(devel_options, configured_model).context("find USB device")?;
 
     ensure!(
         desc.num_configurations() == 1,
         "only one device configuration is expected"
     );
 
-    let preferred_endpoint = match id_product {
-        0x8840 | 0x8842 | 0x8850 => k884x::Keyboard884x::preferred_endpoint(),
-        0x8890 => k8890::Keyboard8890::preferred_endpoint(),
-        _ => unreachable!("unsupported device"),
+    let preferred_endpoint = match model {
+        KeyboardModel::Ch57x_1 => {
+            k884x::Keyboard884x::preferred_endpoint()
+        }
+        KeyboardModel::Ch57x_2 => k8890::Keyboard8890::preferred_endpoint(),
     };
 
     // Find correct endpoint
@@ -240,23 +251,25 @@ fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u
     // Initialize device.
     send_to_device(&handle, endpt_addr, &[0u8; 64])?;
 
-    Ok((handle, endpt_addr, id_product))
+    Ok((handle, endpt_addr, model))
 }
 
-fn create_driver(id_product: u16, buttons: u8, knobs: u8) -> Result<Box<dyn Keyboard>> {
-    let keyboard: Box<dyn Keyboard> = match id_product {
-        0x8840 | 0x8842 | 0x8850 => {
+fn create_driver(model: KeyboardModel, buttons: u8, knobs: u8) -> Result<Box<dyn Keyboard>> {
+    let keyboard: Box<dyn Keyboard> = match model {
+        KeyboardModel::Ch57x_1 => {
             Box::new(k884x::Keyboard884x::new(buttons, knobs)?)
         }
-        0x8890 => {
+        KeyboardModel::Ch57x_2 => {
             Box::new(k8890::Keyboard8890::new())
         }
-        _ => bail!("unsupported device"),
     };
     Ok(keyboard)
 }
 
-fn find_device(devel_options: &DevelOptions) -> Result<(Device<Context>, DeviceDescriptor, u16)> {
+fn find_device(
+    devel_options: &DevelOptions,
+    configured_model: Option<KeyboardModel>,
+) -> Result<(Device<Context>, DeviceDescriptor, KeyboardModel)> {
     let options = vec![
         #[cfg(windows)] rusb::UsbOption::use_usbdk(),
     ];
@@ -276,10 +289,14 @@ fn find_device(devel_options: &DevelOptions) -> Result<(Device<Context>, DeviceD
         if desc.vendor_id() == devel_options.vendor_id
             && match devel_options.product_id {
                 Some(prod_id) => prod_id == product_id,
-                None => PRODUCT_IDS.contains(&product_id),
+                None => match configured_model {
+                    Some(model) => model.supports_product_id(product_id),
+                    None => PRODUCT_IDS.contains(&product_id),
+                },
             }
         {
-            found.push((device, desc, product_id));
+            let model = KeyboardModel::from_product_id(product_id)?;
+            found.push((device, desc, model));
         }
     }
 
@@ -290,7 +307,7 @@ fn find_device(devel_options: &DevelOptions) -> Result<(Device<Context>, DeviceD
         1 => Ok(found.pop().unwrap()),
         _ => {
             let mut addresses = vec![];
-            for (device, desc, product_id) in found {
+            for (device, desc, model) in found {
                 /*let handle = device.open().context("open device")?;
                 let langs = handle.read_languages(DEFAULT_TIMEOUT).context("get langs")?;
                 dbg!(&langs);
@@ -311,7 +328,7 @@ fn find_device(devel_options: &DevelOptions) -> Result<(Device<Context>, DeviceD
                     .context("read serial")?;*/
                 let address = (device.bus_number(), device.address());
                 if devel_options.address.as_ref() == Some(&address) {
-                    return Ok((device, desc, product_id))
+                    return Ok((device, desc, model))
                 }
 
                 addresses.push(address);
