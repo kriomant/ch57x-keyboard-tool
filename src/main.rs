@@ -218,7 +218,7 @@ fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u
     );
 
     let preferred_endpoint = match id_product {
-        0x8840 | 0x8842 | 0x8850 => k884x::Keyboard884x::preferred_endpoint(),
+        0x8840 | 0x8842 | 0x8850 | 0x8851 => k884x::Keyboard884x::preferred_endpoint(),
         0x8890 => k8890::Keyboard8890::preferred_endpoint(),
         _ => unreachable!("unsupported device"),
     };
@@ -245,7 +245,7 @@ fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u
 
 fn create_driver(id_product: u16, buttons: u8, knobs: u8) -> Result<Box<dyn Keyboard>> {
     let keyboard: Box<dyn Keyboard> = match id_product {
-        0x8840 | 0x8842 | 0x8850 => {
+        0x8840 | 0x8842 | 0x8850 | 0x8851 => {
             Box::new(k884x::Keyboard884x::new(buttons, knobs)?)
         }
         0x8890 => {
