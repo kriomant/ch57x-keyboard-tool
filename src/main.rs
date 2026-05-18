@@ -7,7 +7,6 @@ mod parse;
 use std::io::{BufReader, Read, StdinLock};
 
 use crate::config::{Config, KeyboardModel};
-use crate::consts::PRODUCT_IDS;
 use crate::keyboard::{
     k884x, k8890, Keyboard, KnobAction, MediaCode, Modifier,
     WellKnownCode,
@@ -112,8 +111,8 @@ fn main() -> Result<()> {
             send_to_device(&handle, endpoint, &output)?;
         }
 
-        Command::Led(LedCommand { mut args }) => {
-            let (handle, endpoint, model) = open_device(&options.devel_options, None)?;
+        Command::Led(LedCommand { model, mut args }) => {
+            let (handle, endpoint, model) = open_device(&options.devel_options, model)?;
             // TODO: fix this dirty hack
             let mut keyboard = create_driver(model, 0, 0)?;
             let mut output = Vec::new();
@@ -123,12 +122,8 @@ fn main() -> Result<()> {
             send_to_device(&handle, endpoint, &output)?;
         }
 
-        Command::TestLed(TestLedCommand { mut args }) => {
-            let product_id = options.devel_options.product_id
-                .ok_or_else(|| anyhow!("test-led command requires --product-id to be specified"))?;
-
+        Command::TestLed(TestLedCommand { model, mut args }) => {
             // Create driver without USB device initialization
-            let model = KeyboardModel::from_product_id(product_id)?;
             let mut keyboard = create_driver(model, 0, 0)?;
             let mut output = Vec::new();
 
@@ -285,55 +280,78 @@ fn find_device(
             desc.vendor_id(),
             desc.product_id()
         );
-        let product_id = desc.product_id();
-        if desc.vendor_id() == devel_options.vendor_id
-            && match devel_options.product_id {
-                Some(prod_id) => prod_id == product_id,
-                None => match configured_model {
-                    Some(model) => model.supports_product_id(product_id),
-                    None => PRODUCT_IDS.contains(&product_id),
-                },
-            }
-        {
-            let model = KeyboardModel::from_product_id(product_id)?;
-            found.push((device, desc, model));
+
+        // All keyboards we support uses same vendor ID.
+        // It may be overriden by user, if needed.
+        if desc.vendor_id() != devel_options.vendor_id {
+            continue;
         }
+
+        // Filter by device address. It allows user to select device precisely
+        // even when several devices with same VID/PID are present.
+        let device_address = (device.bus_number(), device.address());
+        if let Some(address) = devel_options.address && device_address != address {
+            continue;
+        }
+
+        // Filter devices by product ID.
+        let models = match (configured_model, devel_options.product_id) {
+            (Some(model), Some(product_id)) => {
+                // If product ID is explicitly given by user, then use it, even
+                // if model doesn't declare it as supported.
+                if desc.product_id() != product_id {
+                    continue;
+                }
+
+                vec![model]
+            }
+            (None, Some(product_id)) => {
+                if desc.product_id() != product_id {
+                    continue;
+                }
+
+                KeyboardModel::from_product_id(product_id)
+            }
+            (Some(model), None) => {
+                if !model.supports_product_id(desc.product_id()) {
+                    continue;
+                }
+
+                vec![model]
+            }
+            (None, None) => {
+                let models = KeyboardModel::from_product_id(desc.product_id());
+                if models.is_empty() {
+                    continue;
+                }
+
+                models
+            }
+        };
+
+        found.push((device, desc, models));
     }
 
     match found.len() {
         0 => Err(anyhow!(
             "CH57x keyboard device not found. Use --vendor-id and --product-id to override settings."
         )),
-        1 => Ok(found.pop().unwrap()),
-        _ => {
-            let mut addresses = vec![];
-            for (device, desc, model) in found {
-                /*let handle = device.open().context("open device")?;
-                let langs = handle.read_languages(DEFAULT_TIMEOUT).context("get langs")?;
-                dbg!(&langs);
-                let lang =
-                    // First try to find US English language
-                    langs.iter().find(|l| {
-                        l.primary_language() == PrimaryLanguage::English &&
-                        l.sub_language() == SubLanguage::UnitedStates
-                    })
-                    // Then any English sublanguage
-                    .or_else(|| langs.iter().find(|l| l.primary_language() == PrimaryLanguage::English))
-                    // Then just first available language
-                    .or_else(|| langs.first())
-                    // Ok, give up
-                    .ok_or_else(|| anyhow!("No languages found"))?;
-                dbg!(lang);
-                let serial = handle.read_serial_number_string(*lang, &desc, DEFAULT_TIMEOUT)
-                    .context("read serial")?;*/
-                let address = (device.bus_number(), device.address());
-                if devel_options.address.as_ref() == Some(&address) {
-                    return Ok((device, desc, model))
-                }
-
-                addresses.push(address);
+        1 => {
+            let (device, desc, models) = found.pop().unwrap();
+            if models.len() == 1 {
+                return Ok((device, desc, models[0]));
             }
 
+            Err(anyhow!(indoc! {"
+                Found device, but there are several different models which can use such product ID.
+                You need to select model and:
+                * write it to configuration file ('model' field) for 'upload' command
+                * or provide `--model` argument for 'led' command
+                Possible values inferred from product ID: {}
+                If you are not sure which model to use, just try each and find one which works.
+            "}, models.iter().map(|model| format!("{model}")).join("\n")))
+        }
+        _ => {
             Err(anyhow!(indoc! {"
                 Several compatible devices are found.
                 Unfortunately, this model of keyboard doesn't have serial number.
@@ -341,7 +359,9 @@ fn find_device(
 
                 Addresses:
                 {}
-            "}, addresses.iter().map(|(bus, addr)| format!("{bus}:{addr}")).join("\n")))
+            "}, found.iter()
+                     .map(|(device, _, _)| format!("{}:{}", device.bus_number(), device.address()))
+                     .join("\n")))
         }
     }
 }

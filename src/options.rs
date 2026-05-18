@@ -2,6 +2,7 @@ use std::ffi::OsString;
 use std::num::ParseIntError;
 
 use clap::{Args, Parser, Subcommand};
+use crate::config::KeyboardModel;
 use crate::consts::VENDOR_ID;
 use crate::parse;
 
@@ -75,12 +76,18 @@ pub struct ConfigParams {
 
 #[derive(Parser)]
 pub struct LedCommand {
+    #[arg(long)]
+    pub model: Option<KeyboardModel>,
+
     #[arg(num_args=0.., allow_hyphen_values=true)]
     pub args: Vec<String>,
 }
 
 #[derive(Parser)]
 pub struct TestLedCommand {
+    #[arg(long)]
+    pub model: KeyboardModel,
+
     /// LED command arguments (layer and mode)
     #[arg(num_args=0.., allow_hyphen_values=true)]
     pub args: Vec<String>,

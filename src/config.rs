@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, ensure, Result};
+use anyhow::{bail, ensure, Result};
 use serde::Deserialize;
 use strum_macros::{Display, EnumString};
 
@@ -75,11 +75,11 @@ impl KeyboardModel {
         }
     }
 
-    pub fn from_product_id(product_id: u16) -> Result<Self> {
+    pub fn from_product_id(product_id: u16) -> Vec<Self> {
         match product_id {
-            0x8840 | 0x8842 | 0x8850 => Ok(Self::Ch57x_1),
-            0x8890 => Ok(Self::Ch57x_2),
-            _ => Err(anyhow!("unsupported device")),
+            0x8840 | 0x8842 | 0x8850 => vec![Self::Ch57x_1],
+            0x8890 => vec![Self::Ch57x_2],
+            _ => vec![],
         }
     }
 }
