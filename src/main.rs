@@ -7,7 +7,7 @@ use std::io::{BufReader, Read, StdinLock};
 
 use crate::config::{Config, KeyboardModel};
 use crate::keyboard::{
-    k884x, k8890, Keyboard, KnobAction, MediaCode, Modifier,
+    k884x, k8890, k8850_4x4, Keyboard, KnobAction, MediaCode, Modifier,
     WellKnownCode,
 };
 use crate::options::{Command, LedCommand, TestLedCommand};
@@ -226,6 +226,7 @@ fn open_device(
             k884x::Keyboard884x::preferred_endpoint()
         }
         KeyboardModel::Ch57x_2 => k8890::Keyboard8890::preferred_endpoint(),
+        KeyboardModel::Ch57x_3 => k8850_4x4::Keyboard8850_4x4::preferred_endpoint(),
     };
 
     // Find correct endpoint
@@ -255,6 +256,9 @@ fn create_driver(model: KeyboardModel, buttons: u8, knobs: u8) -> Result<Box<dyn
         }
         KeyboardModel::Ch57x_2 => {
             Box::new(k8890::Keyboard8890::new())
+        }
+        KeyboardModel::Ch57x_3 => {
+            Box::new(k8850_4x4::Keyboard8850_4x4::new())
         }
     };
     Ok(keyboard)
