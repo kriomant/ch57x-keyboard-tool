@@ -1,5 +1,4 @@
 mod config;
-mod consts;
 mod keyboard;
 mod options;
 mod parse;
@@ -281,52 +280,58 @@ fn find_device(
             desc.product_id()
         );
 
-        // All keyboards we support uses same vendor ID.
-        // It may be overriden by user, if needed.
-        if desc.vendor_id() != devel_options.vendor_id {
-            continue;
-        }
-
-        // Filter by device address. It allows user to select device precisely
-        // even when several devices with same VID/PID are present.
         let device_address = (device.bus_number(), device.address());
         if let Some(address) = devel_options.address && device_address != address {
             continue;
         }
 
-        // Filter devices by product ID.
-        let models = match (configured_model, devel_options.product_id) {
-            (Some(model), Some(product_id)) => {
-                // If product ID is explicitly given by user, then use it, even
-                // if model doesn't declare it as supported.
-                if desc.product_id() != product_id {
-                    continue;
-                }
-
-                vec![model]
+        if let Some(vid) = devel_options.vendor_id {
+            if desc.vendor_id() != vid {
+                continue;
             }
-            (None, Some(product_id)) => {
-                if desc.product_id() != product_id {
-                    continue;
-                }
+        }
 
-                KeyboardModel::from_product_id(product_id)
+        if let Some(pid) = devel_options.product_id {
+            if desc.product_id() != pid {
+                continue;
             }
-            (Some(model), None) => {
-                if !model.supports_product_id(desc.product_id()) {
-                    continue;
-                }
+        }
 
-                vec![model]
-            }
-            (None, None) => {
-                let models = KeyboardModel::from_product_id(desc.product_id());
-                if models.is_empty() {
-                    continue;
-                }
+        let models = if let Some(model) = configured_model {
+            let supported_pairs = model.supported_vid_pid();
+            let device_vid = desc.vendor_id();
+            let device_pid = desc.product_id();
 
-                models
+            let supported = match (devel_options.vendor_id, devel_options.product_id) {
+                (Some(_), Some(_)) => {
+                    true
+                },
+                (Some(_), None) => {
+                    // Vendor ID is specified by user, accept it, but check that Product ID is among
+                    // supported by this model.
+                    supported_pairs.iter().any(|(_, pid)| *pid == device_pid)
+                },
+                (None, Some(_)) => {
+                    // Product ID is specified by user, accept it, but check that Vendor ID is among
+                    // supported by this model.
+                    supported_pairs.iter().any(|(vid, _)| *vid == device_vid)
+                }
+                (None, None) => {
+                    supported_pairs.contains(&(device_vid, device_pid))
+                }
+            };
+
+            if !supported {
+                continue;
             }
+
+            vec![model]
+        } else {
+            let models = KeyboardModel::from_vid_pid(desc.vendor_id(), desc.product_id());
+            if models.is_empty() {
+                continue;
+            }
+            models
         };
 
         found.push((device, desc, models));
@@ -334,7 +339,7 @@ fn find_device(
 
     match found.len() {
         0 => Err(anyhow!(
-            "CH57x keyboard device not found. Use --vendor-id and --product-id to override settings."
+            "CH57x keyboard device not found. Use --vendor-id and/or --product-id to override."
         )),
         1 => {
             let (device, desc, models) = found.pop().unwrap();

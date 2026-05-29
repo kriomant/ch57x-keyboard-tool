@@ -68,17 +68,17 @@ pub enum KeyboardModel {
 }
 
 impl KeyboardModel {
-    pub fn supports_product_id(self, product_id: u16) -> bool {
+    pub fn supported_vid_pid(self) -> &'static [(u16, u16)] {
         match self {
-            Self::Ch57x_1 => matches!(product_id, 0x8840 | 0x8842 | 0x8850),
-            Self::Ch57x_2 => product_id == 0x8890,
+            Self::Ch57x_1 => &[(0x1189, 0x8840), (0x1189, 0x8842), (0x1189, 0x8850)],
+            Self::Ch57x_2 => &[(0x1189, 0x8890)],
         }
     }
 
-    pub fn from_product_id(product_id: u16) -> Vec<Self> {
-        match product_id {
-            0x8840 | 0x8842 | 0x8850 => vec![Self::Ch57x_1],
-            0x8890 => vec![Self::Ch57x_2],
+    pub fn from_vid_pid(vendor_id: u16, product_id: u16) -> Vec<Self> {
+        match (vendor_id, product_id) {
+            (0x1189, 0x8840 | 0x8842 | 0x8850) => vec![Self::Ch57x_1],
+            (0x1189, 0x8890) => vec![Self::Ch57x_2],
             _ => vec![],
         }
     }

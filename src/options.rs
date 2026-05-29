@@ -3,7 +3,6 @@ use std::num::ParseIntError;
 
 use clap::{Args, Parser, Subcommand};
 use crate::config::KeyboardModel;
-use crate::consts::VENDOR_ID;
 use crate::parse;
 
 #[derive(Parser)]
@@ -18,8 +17,8 @@ pub struct Options {
 #[derive(Args)]
 #[clap(version, next_help_heading = "Internal options (use with caution)")]
 pub struct DevelOptions {
-    #[arg(long, default_value_t=VENDOR_ID, value_parser=hex_or_decimal)]
-    pub vendor_id: u16,
+    #[arg(long, value_parser=hex_or_decimal)]
+    pub vendor_id: Option<u16>,
 
     #[arg(long, value_parser=hex_or_decimal)]
     pub product_id: Option<u16>,
