@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn parse_keyboard_model() -> anyhow::Result<()> {
         let config: Config = serde_yaml::from_str(indoc::indoc! {"
-            model: k884x
+            model: ch57x-1
             orientation: normal
             rows: 1
             columns: 1
