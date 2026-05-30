@@ -67,20 +67,28 @@ pub enum KeyboardModel {
     Ch57x_2,
 }
 
+const SUPPORTED_DEVICES: &[(KeyboardModel, u16, u16)] = &[
+    (KeyboardModel::Ch57x_1, 0x1189, 0x8840),
+    (KeyboardModel::Ch57x_1, 0x1189, 0x8842),
+    (KeyboardModel::Ch57x_1, 0x1189, 0x8850),
+    (KeyboardModel::Ch57x_2, 0x1189, 0x8890),
+];
+
 impl KeyboardModel {
-    pub fn supported_vid_pid(self) -> &'static [(u16, u16)] {
-        match self {
-            Self::Ch57x_1 => &[(0x1189, 0x8840), (0x1189, 0x8842), (0x1189, 0x8850)],
-            Self::Ch57x_2 => &[(0x1189, 0x8890)],
-        }
+    pub fn supported_vid_pid(self) -> Vec<(u16, u16)> {
+        SUPPORTED_DEVICES
+            .iter()
+            .filter(|(model, _, _)| *model == self)
+            .map(|(_, vid, pid)| (*vid, *pid))
+            .collect()
     }
 
     pub fn from_vid_pid(vendor_id: u16, product_id: u16) -> Vec<Self> {
-        match (vendor_id, product_id) {
-            (0x1189, 0x8840 | 0x8842 | 0x8850) => vec![Self::Ch57x_1],
-            (0x1189, 0x8890) => vec![Self::Ch57x_2],
-            _ => vec![],
-        }
+        SUPPORTED_DEVICES
+            .iter()
+            .filter(|(_, vid, pid)| *vid == vendor_id && *pid == product_id)
+            .map(|(model, _, _)| *model)
+            .collect()
     }
 }
 
