@@ -65,6 +65,7 @@ impl Config {
 pub enum KeyboardModel {
     Ch57x_1,
     Ch57x_2,
+    Ch57x_3,
 }
 
 const SUPPORTED_DEVICES: &[(KeyboardModel, u16, u16)] = &[
@@ -72,6 +73,7 @@ const SUPPORTED_DEVICES: &[(KeyboardModel, u16, u16)] = &[
     (KeyboardModel::Ch57x_1, 0x1189, 0x8842),
     (KeyboardModel::Ch57x_1, 0x1189, 0x8850),
     (KeyboardModel::Ch57x_2, 0x1189, 0x8890),
+    (KeyboardModel::Ch57x_3, 0x514c, 0x8850),
 ];
 
 impl KeyboardModel {

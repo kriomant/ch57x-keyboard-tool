@@ -1,5 +1,6 @@
 pub(crate) mod k884x;
 pub(crate) mod k8890;
+pub(crate) mod k8850_4x4;
 
 use crate::parse;
 
