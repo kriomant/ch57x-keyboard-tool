@@ -205,6 +205,11 @@ Control media playback and system functions:
 | `favorites` | Open favorites |
 | `calculator` | Open calculator |
 | `screenlock` | Lock screen |
+| `screenbrightnessup` | Increase screen brightness |
+| `screenbrightnessdown` | Decrease screen brightness |
+| `webpagehome` | Browser: home page |
+| `webpageback` | Browser: back |
+| `webpageforward` | Browser: forward |
 
 Example:
 

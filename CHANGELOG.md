@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add screen brightness and web page media keys (`screenbrightnessup`,
+  `screenbrightnessdown`, `webpagehome`, `webpageback`, `webpageforward`)
+
 ## 1.7.0
 
 ## 1.6.2
