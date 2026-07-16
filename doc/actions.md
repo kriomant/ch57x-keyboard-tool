@@ -195,6 +195,8 @@ Control media playback and system functions:
 
 | Key | Description |
 |-----|-------------|
+| `screenbrightnessup` | Increase screen brightness |
+| `screenbrightnessdown` | Decrease screen brightness |
 | `next` | Next track |
 | `previous` or `prev` | Previous track |
 | `stop` | Stop playback |
@@ -204,8 +206,6 @@ Control media playback and system functions:
 | `volumedown` | Decrease volume |
 | `favorites` | Open favorites |
 | `calculator` | Open calculator |
-| `screenbrightnessdown` | Decrease screen brightness |
-| `screenbrightnessup` | Increase screen brightness |
 | `screenlock` | Lock screen |
 | `webpagehome` | Browser: home page |
 | `webpageback` | Browser: back |

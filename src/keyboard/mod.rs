@@ -85,6 +85,8 @@ pub type Modifiers = EnumSet<Modifier>;
 #[strum(serialize_all="lowercase")]
 #[strum(ascii_case_insensitive)]
 pub enum MediaCode {
+	ScreenBrightnessUp = 0x6f,
+	ScreenBrightnessDown = 0x70,
 	Next = 0xb5,
     #[strum(serialize="previous", serialize="prev")]
 	Previous = 0xb6,
@@ -95,8 +97,6 @@ pub enum MediaCode {
 	VolumeDown = 0xea,
 	Favorites = 0x182,
 	Calculator = 0x192,
-	ScreenBrightnessDown = 0x70,
-	ScreenBrightnessUp = 0x6f,
 	ScreenLock = 0x19e,
 	WebPageHome = 0x223,
 	WebPageBack = 0x224,
