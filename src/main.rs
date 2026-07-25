@@ -9,10 +9,10 @@ use std::io::{BufReader, Read, StdinLock};
 use crate::config::Config;
 use crate::consts::PRODUCT_IDS;
 use crate::keyboard::{
-    k884x, k8890, Keyboard, KnobAction, MediaCode, Modifier,
+    k884x, k8850, k8890, Keyboard, KnobAction, MediaCode, Modifier,
     WellKnownCode,
 };
-use crate::options::{Command, LedCommand, TestLedCommand};
+use crate::options::{Command, Driver, LedCommand, TestLedCommand};
 use crate::{keyboard::Key, options::Options};
 
 use anyhow::{Result, anyhow, bail, ensure};
@@ -76,7 +76,7 @@ fn main() -> Result<()> {
             let layers = config.render().context("render mapping config")?;
 
             let (handle, endpoint, id_product) = open_device(&options.devel_options)?;
-            let keyboard = create_driver(id_product, buttons, knobs)?;
+            let keyboard = create_driver(id_product, buttons, knobs, options.devel_options.driver)?;
 
             let mut output = Vec::new();
 
@@ -109,7 +109,7 @@ fn main() -> Result<()> {
         Command::Led(LedCommand { mut args }) => {
             let (handle, endpoint, id_product) = open_device(&options.devel_options)?;
             // TODO: fix this dirty hack
-            let mut keyboard = create_driver(id_product, 0, 0)?;
+            let mut keyboard = create_driver(id_product, 0, 0, options.devel_options.driver)?;
             let mut output = Vec::new();
 
             args.insert(0, "led".to_string());
@@ -122,7 +122,7 @@ fn main() -> Result<()> {
                 .ok_or_else(|| anyhow!("test-led command requires --product-id to be specified"))?;
 
             // Create driver without USB device initialization
-            let mut keyboard = create_driver(product_id, 0, 0)?;
+            let mut keyboard = create_driver(product_id, 0, 0, options.devel_options.driver)?;
             let mut output = Vec::new();
 
             // Validate LED arguments
@@ -217,10 +217,15 @@ fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u
         "only one device configuration is expected"
     );
 
-    let preferred_endpoint = match id_product {
-        0x8840 | 0x8842 | 0x8850 => k884x::Keyboard884x::preferred_endpoint(),
-        0x8890 => k8890::Keyboard8890::preferred_endpoint(),
-        _ => unreachable!("unsupported device"),
+    let preferred_endpoint = match devel_options.driver {
+        Some(Driver::K884x) => k884x::Keyboard884x::preferred_endpoint(),
+        Some(Driver::K8850) => k8850::Keyboard8850::preferred_endpoint(),
+        Some(Driver::K8890) => k8890::Keyboard8890::preferred_endpoint(),
+        None => match id_product {
+            0x8840 | 0x8842 | 0x8850 => k884x::Keyboard884x::preferred_endpoint(),
+            0x8890 => k8890::Keyboard8890::preferred_endpoint(),
+            _ => bail!("unsupported device"),
+        },
     };
 
     // Find correct endpoint
@@ -243,15 +248,27 @@ fn open_device(devel_options: &DevelOptions) -> Result<(DeviceHandle<Context>, u
     Ok((handle, endpt_addr, id_product))
 }
 
-fn create_driver(id_product: u16, buttons: u8, knobs: u8) -> Result<Box<dyn Keyboard>> {
-    let keyboard: Box<dyn Keyboard> = match id_product {
-        0x8840 | 0x8842 | 0x8850 => {
-            Box::new(k884x::Keyboard884x::new(buttons, knobs)?)
-        }
-        0x8890 => {
-            Box::new(k8890::Keyboard8890::new())
-        }
-        _ => bail!("unsupported device"),
+fn create_driver(
+    id_product: u16,
+    buttons: u8,
+    knobs: u8,
+    driver: Option<Driver>,
+) -> Result<Box<dyn Keyboard>> {
+    // An explicit --driver wins: the same USB ID is shared by pads that do not
+    // speak the same protocol, so auto-selection cannot always be right.
+    let driver = match driver {
+        Some(driver) => driver,
+        None => match id_product {
+            0x8840 | 0x8842 | 0x8850 => Driver::K884x,
+            0x8890 => Driver::K8890,
+            _ => bail!("unsupported device"),
+        },
+    };
+
+    let keyboard: Box<dyn Keyboard> = match driver {
+        Driver::K884x => Box::new(k884x::Keyboard884x::new(buttons, knobs)?),
+        Driver::K8850 => Box::new(k8850::Keyboard8850::new(buttons, knobs)?),
+        Driver::K8890 => Box::new(k8890::Keyboard8890::new()),
     };
     Ok(keyboard)
 }
