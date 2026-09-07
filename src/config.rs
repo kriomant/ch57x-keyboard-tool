@@ -138,8 +138,13 @@ pub struct Layer {
 #[derive(Debug, Deserialize)]
 pub struct Knob {
     pub ccw: Option<Macro>,
+    #[serde(default)]
     pub press: Option<Macro>,
     pub cw: Option<Macro>,
+    #[serde(default)]
+    pub hold_ccw: Option<Macro>,
+    #[serde(default)]
+    pub hold_cw: Option<Macro>,
 }
 
 pub struct FlatLayer {
@@ -246,7 +251,7 @@ mod tests {
                             None
                         ],
                     ],
-                    knobs: vec![Knob { ccw: None, press: None, cw: None }],
+                    knobs: vec![Knob { ccw: None, press: None, cw: None, hold_ccw: None, hold_cw: None }],
                 },
             ],
         };

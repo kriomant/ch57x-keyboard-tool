@@ -43,9 +43,12 @@ layers:
       # Knobs are listed from top to bottom if vertical.
       # Knobs can be rotated counter-clockwise (ccw) or clockwise (cw)
       # and pressed down.
+      # Knobs can also be held down and rotated while depressed.
       - ccw: "wheelup"
         press: "click"
         cw: "wheeldown"
+        hold_cw: "previous"
+        hold_ccw: "next"
       - ccw: "shift-wheelup"
         press: "shift-click"
         cw: "shift-wheeldown"

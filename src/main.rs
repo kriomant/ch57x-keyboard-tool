@@ -103,6 +103,12 @@ fn main() -> Result<()> {
                     if let Some(macro_) = &knob.cw {
                         keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::RotateCW), macro_, &mut output)?;
                     }
+                    if let Some(macro_) = &knob.hold_ccw {
+                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::HoldRotateCCW), macro_, &mut output)?;
+                    }
+                    if let Some(macro_) = &knob.hold_cw {
+                        keyboard.bind_key(layer_idx as u8, Key::Knob(knob_idx as u8, KnobAction::HoldRotateCW), macro_, &mut output)?;
+                    }
                 }
             }
 
@@ -250,7 +256,7 @@ fn create_driver(model: KeyboardModel, buttons: u8, knobs: u8) -> Result<Box<dyn
             Box::new(k8890::Keyboard8890::new())
         }
         KeyboardModel::Ch57x_3 => {
-            Box::new(k8850_4x4::Keyboard8850_4x4::new())
+            Box::new(k8850_4x4::Keyboard8850_4x4::new(buttons, knobs)?)
         }
     };
     Ok(keyboard)

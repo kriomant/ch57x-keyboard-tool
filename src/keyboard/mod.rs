@@ -37,6 +37,10 @@ pub enum KnobAction {
     Press,
     #[strum(serialize="cw")]
     RotateCW,
+    #[strum(serialize="hold_ccw")]
+    HoldRotateCCW,
+    #[strum(serialize="hold_cw")]
+    HoldRotateCW,
 }
 
 #[derive(Debug, Clone, Copy)]
