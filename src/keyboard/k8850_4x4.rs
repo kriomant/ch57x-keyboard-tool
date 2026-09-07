@@ -5,9 +5,12 @@ use crate::keyboard::{
     send_message, Accord, KeyboardEvent, Modifier, MouseButton, MouseButtons, MouseModifier,
 };
 
-use super::{Key, Keyboard, Macro, MouseAction, MouseEvent};
+use super::{Key, Keyboard, Macro, MouseAction, MouseEvent, KnobAction};
 
-pub struct Keyboard8850_4x4;
+pub struct Keyboard8850_4x4 {
+    buttons: u8,
+    knobs: u8,
+}
 
 fn get_modifier_code(modifier: &Modifier) -> u8 {
     match modifier {
@@ -110,18 +113,45 @@ impl Keyboard for Keyboard8850_4x4 {
 }
 
 impl Keyboard8850_4x4 {
-    pub fn new() -> Self {
-        Self
+    pub fn new(buttons: u8, knobs: u8) -> Result<Self> {
+        Ok(Self { buttons, knobs })
     }
 
     fn to_key_id(&self, key: Key) -> Result<u8> {
-        const MAX_NUMBER_OF_BUTTONS: u8 = 16;
-        match key {
-            Key::Button(n) if n >= MAX_NUMBER_OF_BUTTONS => {
-                Err(anyhow::anyhow!("invalid key index"))
+        // Special case: zero-button dual-wheel variant
+        // (two wheels: wheel 1 with 5 actions, wheel 2 with 2 actions)
+        // Key IDs verified from Windows-captured traffic:
+        //   2=w1_ccw, 3=w1_press, 4=w1_cw, 5=w1_hold_ccw, 6=w1_hold_cw,
+        //   7=w2_ccw, 8=w2_cw
+        if self.buttons == 0 && self.knobs == 2 {
+            match key {
+                Key::Button(_) => Err(anyhow::anyhow!("no buttons on this device")),
+                Key::Knob(0, KnobAction::RotateCCW) => Ok(0x02),
+                Key::Knob(0, KnobAction::Press) => Ok(0x03),
+                Key::Knob(0, KnobAction::RotateCW) => Ok(0x04),
+                Key::Knob(0, KnobAction::HoldRotateCCW) => Ok(0x05),
+                Key::Knob(0, KnobAction::HoldRotateCW) => Ok(0x06),
+                Key::Knob(1, KnobAction::RotateCCW) => Ok(0x07),
+                Key::Knob(1, KnobAction::RotateCW) => Ok(0x08),
+                Key::Knob(1, KnobAction::Press) => {
+                    Err(anyhow::anyhow!("wheel 2 does not support a press action on this device"))
+                }
+                _ => Err(anyhow::anyhow!(
+                    "unsupported knob/action combination for this device variant"
+                )),
             }
-            Key::Button(n) => Ok(n + 1),
-            Key::Knob(n, action) => Ok(MAX_NUMBER_OF_BUTTONS + 1 + 3 * n + (action as u8)),
+        } else {
+            // Original 16-button base model formula
+            const MAX_NUMBER_OF_BUTTONS: u8 = 16;
+            match key {
+                Key::Button(n) if n >= MAX_NUMBER_OF_BUTTONS => {
+                    Err(anyhow::anyhow!("invalid key index"))
+                }
+                Key::Button(n) => Ok(n + 1),
+                Key::Knob(n, action) => {
+                    Ok(MAX_NUMBER_OF_BUTTONS + 1 + 3 * n + (action as u8))
+                }
+            }
         }
     }
 
