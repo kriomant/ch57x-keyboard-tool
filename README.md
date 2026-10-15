@@ -156,6 +156,8 @@ Modes:
 Supported key colors: *red*, *orange*, *yellow*, *green*, *cyan*, *blue*, *purple*.
 Backlight additionally supports *white*.
 
+For example: `./ch57x-keyboard-tool led 0 'backlight green'`
+
 #### 0x8890
 
 Set the LED to the first mode (likely "Steady on")
@@ -290,6 +292,10 @@ git clone https://github.com/boppreh/mouse
 cd mouse
 python3 -m mouse
 ```
+
+### Logging
+
+In case you want to enable logging, set env variable `RUST_LOG=debug`, i.e. under linux using `RUST_LOG=debug ch57x-keyboard-tool validate my-mapping.yaml`.
 
 ## Supported macro keyboards
 

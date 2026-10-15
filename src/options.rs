@@ -17,9 +17,11 @@ pub struct Options {
 #[derive(Args)]
 #[clap(version, next_help_heading = "Internal options (use with caution)")]
 pub struct DevelOptions {
+    /// Vendor ID either hex or dec (i.e. 0x8842 vs. 34882)
     #[arg(long, value_parser=hex_or_decimal)]
     pub vendor_id: Option<u16>,
 
+    /// Product ID either hex or dec (i.e. 0x8842 vs. 34882)
     #[arg(long, value_parser=hex_or_decimal)]
     pub product_id: Option<u16>,
 

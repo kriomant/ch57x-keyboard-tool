@@ -322,8 +322,9 @@ fn find_device(
             }
 
             vec![model.device_info(device_vid, device_pid).ok_or_else(|| anyhow!(
-                "No known preferred endpoint for device {:04x}:{:04x}. \
+                "Your selected model {} does not match the device {:04x}:{:04x}. \
                  Use --endpoint-address to specify it.",
+                model,
                 device_vid,
                 device_pid
             ))?]
